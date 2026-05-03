@@ -80,7 +80,10 @@ export async function GET(req) {
 
     return NextResponse.json({ candidatos: data })
   } catch (err) {
-    console.error('[GET /api/candidatos]', err)
-    return NextResponse.json({ error: 'Erro ao buscar candidatos' }, { status: 500 })
+    console.error('[POST /api/candidatos]', err)
+    return NextResponse.json({ 
+      error: 'Erro ao registrar candidato',
+      detalhe: err.message 
+    }, { status: 500 })
   }
 }
