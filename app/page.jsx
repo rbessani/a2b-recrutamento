@@ -33,16 +33,6 @@ const QS=[
 {id:23,o:[{l:"A",t:"DESLIGADO"},{l:"B",t:"GRADATIVO"},{l:"C",t:"JUSTIÇA"},{l:"D",t:"FIRMEZA"}]},
 {id:24,o:[{l:"A",t:"POLÊMICA"},{l:"B",t:"PRUDÊNCIA"},{l:"C",t:"COLETIVIDADE"},{l:"D",t:"INSISTÊNCIA"}]},
 {id:25,o:[{l:"A",t:"MULTIPLICIDADE"},{l:"B",t:"CAUTELA"},{l:"C",t:"CONJUNTO"},{l:"D",t:"COMPETIÇÃO"}]},
-{id:26,o:[{l:"A",t:"MULTIPLICIDADE"},{l:"B",t:"CAUTELA"},{l:"C",t:"CONJUNTO"},{l:"D",t:"COMPETIÇÃO"}]},
-];
-
-const DEMO=[
-{id:"BSN-001",nm:"Ana Paula Ferreira",em:"ana@email.com",tel:"(19) 99234-5678",ci:"Rio Claro",uf:"SP",pr:"pré-vendas",dt:"15/01 09:32",A:7,B:2,C:8,D:9,sc:82,as:8.5,cs:76,tt:80,st:"Em análise"},
-{id:"BSN-002",nm:"Carlos Eduardo Lima",em:"carlos@email.com",tel:"(19) 98765-4321",ci:"Limeira",uf:"SP",pr:"pré-vendas",dt:"15/01 11:14",A:5,B:6,C:4,D:5,sc:68,as:7.0,cs:72,tt:69,st:"Aprovado"},
-{id:"BSN-003",nm:"Fernanda Souza",em:"fernanda@email.com",tel:"(11) 97654-3210",ci:"Campinas",uf:"SP",pr:"pré-vendas",dt:"16/01 08:55",A:3,B:9,C:4,D:10,sc:91,as:9.2,cs:88,tt:90,st:"Aprovado"},
-{id:"BSN-004",nm:"Rodrigo Mendes",em:"rodrigo@email.com",tel:"(19) 96543-2109",ci:"Piracicaba",uf:"SP",pr:"pré-vendas",dt:"16/01 14:30",A:3,B:8,C:2,D:7,sc:55,as:6.0,cs:60,tt:57,st:"Em análise"},
-{id:"BSN-005",nm:"Juliana Alves Costa",em:"juliana@email.com",tel:"(19) 95432-1098",ci:"Rio Claro",uf:"SP",pr:"comercial",dt:"17/01 10:20",A:6,B:4,C:7,D:3,sc:74,as:7.8,cs:80,tt:77,st:"Em análise"},
-{id:"BSN-006",nm:"Marcos Vinícius Prado",em:"marcos@email.com",tel:"(19) 94321-0987",ci:"Araras",uf:"SP",pr:"comercial",dt:"17/01 15:45",A:8,B:3,C:6,D:3,sc:78,as:8.0,cs:70,tt:75,st:"Em análise"},
 ];
 
 function scColor(n){return n>=80?GRN:n>=65?AMB:RED;}
@@ -605,7 +595,9 @@ function AdminPanel({onBack}){
   function estado(c){return c.estado||c.uf||"";}
   function status(c){return c.status||c.st||"-";}
   function perfil(c){return c.perfil_dominante||"-";}
-  function arquivos(c,tipo){return (c.arquivos||[]).filter(a=>a.tipo===tipo);}
+  function arquivos(c,tipo){return (c.arquivos||[]).filter(a=>a.tipo===tipo);} 
+
+  
 
   async function salvarScore(c){
     const id=cid(c);
