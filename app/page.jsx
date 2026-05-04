@@ -356,7 +356,6 @@ function AdminLogin({onLogin,onBack}){
           <input type="password" value={p} onChange={e=>setP(e.target.value)} style={{border:`1.5px solid ${G200}`,borderRadius:9,padding:"9px 11px",fontSize:13,width:"100%",outline:"none",background:G50}}/>
         </div>
         <Btn onClick={()=>{if(u==="admin"&&p==="bessani2024")onLogin();else setErr(true);}}>Entrar no Painel</Btn>
-        <p style={{fontSize:11,color:G400,textAlign:"center",marginTop:8}}>Demo: admin / bessani2024</p>
         <p style={{textAlign:"center",marginTop:6}}><button onClick={onBack} style={{background:"none",color:B3,fontSize:12,fontWeight:600,cursor:"pointer",border:"none"}}>← Voltar ao processo seletivo</button></p>
       </div>
     </div>
