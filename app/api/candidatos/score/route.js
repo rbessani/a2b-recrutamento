@@ -20,21 +20,44 @@ export async function POST(req) {
       (audio * 0.3)
     )
 
-    const { data, error } = await supabaseAdmin
+    const { data: existente } = await supabaseAdmin
       .from('avaliacoes_ia')
-      .upsert({
-        candidato_id,
-        score_curriculo: curriculo,
-        score_audio: audio,
-        score_comportamental: comportamental,
-        score_final
-      }, { onConflict: 'candidato_id' })
-      .select()
-      .single()
+      .select('id')
+      .eq('candidato_id', candidato_id)
+      .maybeSingle()
 
-    if (error) throw error
+    let result
 
-    return NextResponse.json({ avaliacao: data }, { status: 200 })
+    if (existente?.id) {
+      result = await supabaseAdmin
+        .from('avaliacoes_ia')
+        .update({
+          score_curriculo: curriculo,
+          score_audio: audio,
+          score_comportamental: comportamental,
+          score_final
+        })
+        .eq('id', existente.id)
+        .select()
+        .single()
+    } else {
+      result = await supabaseAdmin
+        .from('avaliacoes_ia')
+        .insert({
+          candidato_id,
+          score_curriculo: curriculo,
+          score_audio: audio,
+          score_comportamental: comportamental,
+          score_final
+        })
+        .select()
+        .single()
+    }
+
+    if (result.error) throw result.error
+
+    return NextResponse.json({ avaliacao: result.data }, { status: 200 })
+
   } catch (err) {
     console.error('[POST /api/candidatos/score]', err)
     return NextResponse.json({
