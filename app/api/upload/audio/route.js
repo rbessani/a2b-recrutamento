@@ -43,7 +43,10 @@ export async function POST(req) {
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('audios')
-      .upload(caminho, buffer, { contentType: arquivo.type, upsert: false })
+.upload(caminho, buffer, { 
+  contentType: arquivo.type?.split(";")[0] || "audio/webm", 
+  upsert: false 
+})
 
     if (uploadError) throw uploadError
 
