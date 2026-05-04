@@ -26,7 +26,7 @@ export async function GET(req) {
     const { data: candidatos, error } = await query
     if (error) throw error
 
-    const ids = (candidatos || []).map(c => c.id).filter(Boolean)
+    const ids = (candidatos || []).map(c => c.id || c.candidato_id).filter(Boolean)
 
     let arquivos = []
     if (ids.length > 0) {
@@ -42,7 +42,7 @@ export async function GET(req) {
 
     const candidatosComArquivos = (candidatos || []).map(candidato => {
       const arquivosDoCandidato = arquivos
-        .filter(a => a.candidato_id === candidato.id)
+        .filter(a => a.candidato_id === (candidato.id || candidato.candidato_id))
         .map(a => ({
           ...a,
           url_publica: publicUrl(a.bucket, a.caminho_storage)
