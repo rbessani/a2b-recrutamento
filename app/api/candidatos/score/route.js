@@ -10,6 +10,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'candidato_id obrigatório' }, { status: 400 })
     }
 
+    const { data: candidato, error: candError } = await supabaseAdmin
+      .from('candidatos')
+      .select('id, empresa_id, vaga_id')
+      .eq('id', candidato_id)
+      .single()
+
+    if (candError) throw candError
+
     const curriculo = Number(score_curriculo || 0)
     const audio = Number(score_audio || 0)
     const comportamental = Number(score_comportamental || 0)
@@ -19,6 +27,16 @@ export async function POST(req) {
       (curriculo * 0.3) +
       (audio * 0.3)
     )
+
+    const payload = {
+      empresa_id: candidato.empresa_id,
+      vaga_id: candidato.vaga_id,
+      candidato_id,
+      score_curriculo: curriculo,
+      score_audio: audio,
+      score_comportamental: comportamental,
+      score_final
+    }
 
     const { data: existente } = await supabaseAdmin
       .from('avaliacoes_ia')
@@ -31,25 +49,14 @@ export async function POST(req) {
     if (existente?.id) {
       result = await supabaseAdmin
         .from('avaliacoes_ia')
-        .update({
-          score_curriculo: curriculo,
-          score_audio: audio,
-          score_comportamental: comportamental,
-          score_final
-        })
+        .update(payload)
         .eq('id', existente.id)
         .select()
         .single()
     } else {
       result = await supabaseAdmin
         .from('avaliacoes_ia')
-        .insert({
-          candidato_id,
-          score_curriculo: curriculo,
-          score_audio: audio,
-          score_comportamental: comportamental,
-          score_final
-        })
+        .insert(payload)
         .select()
         .single()
     }
