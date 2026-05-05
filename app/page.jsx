@@ -473,8 +473,36 @@ function P6({data}){
 
 function AdminLogin({onLogin,onBack}){
   const [u,setU]=useState("admin");
-  const [p,setP]=useState("bessani2024");
+  const [p,setP]=useState("");
   const [err,setErr]=useState(false);
+  const [loading,setLoading]=useState(false);
+
+  async function loginAdmin(){
+    setErr(false);
+    setLoading(true);
+
+    try{
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ usuario: u, senha: p })
+      });
+
+      const json = await res.json();
+
+      if(!res.ok || !json.ok){
+        setErr(true);
+        return;
+      }
+
+      onLogin();
+    }catch(e){
+      setErr(true);
+    }finally{
+      setLoading(false);
+    }
+  }
+
   return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`linear-gradient(135deg,${B1},${B2})`,padding:16}}>
       <div style={{background:"#fff",borderRadius:16,padding:"32px 28px",maxWidth:360,width:"100%",boxShadow:"0 8px 40px rgba(0,62,138,.18)"}}>
@@ -485,22 +513,30 @@ function AdminLogin({onLogin,onBack}){
           <h2 style={{fontWeight:800,color:B1,fontSize:"1.15rem"}}>Painel Administrativo</h2>
           <p style={{fontSize:10.5,color:G400,letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:600,marginTop:2}}>Acesso restrito</p>
         </div>
+
         {err&&<div style={{padding:"9px 13px",borderRadius:9,fontSize:12,fontWeight:600,marginBottom:12,background:"rgba(220,38,38,.07)",color:RED,border:"1px solid rgba(220,38,38,.18)"}}>Usuário ou senha incorretos.</div>}
+
         <div style={{marginBottom:12}}>
           <label style={{fontSize:12,fontWeight:600,color:G700,display:"block",marginBottom:4}}>Usuário</label>
           <input value={u} onChange={e=>setU(e.target.value)} style={{border:`1.5px solid ${G200}`,borderRadius:9,padding:"9px 11px",fontSize:13,width:"100%",outline:"none",background:G50}}/>
         </div>
+
         <div style={{marginBottom:18}}>
           <label style={{fontSize:12,fontWeight:600,color:G700,display:"block",marginBottom:4}}>Senha</label>
-          <input type="password" value={p} onChange={e=>setP(e.target.value)} style={{border:`1.5px solid ${G200}`,borderRadius:9,padding:"9px 11px",fontSize:13,width:"100%",outline:"none",background:G50}}/>
+          <input type="password" value={p} onChange={e=>setP(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")loginAdmin();}} style={{border:`1.5px solid ${G200}`,borderRadius:9,padding:"9px 11px",fontSize:13,width:"100%",outline:"none",background:G50}}/>
         </div>
-        <Btn onClick={()=>{if(u==="admin"&&p==="bessani2024")onLogin();else setErr(true);}}>Entrar no Painel</Btn>
-        <p style={{textAlign:"center",marginTop:6}}><button onClick={onBack} style={{background:"none",color:B3,fontSize:12,fontWeight:600,cursor:"pointer",border:"none"}}>← Voltar ao processo seletivo</button></p>
+
+        <Btn onClick={loginAdmin} disabled={loading}>
+          {loading ? "Entrando..." : "Entrar no Painel"}
+        </Btn>
+
+        <p style={{textAlign:"center",marginTop:6}}>
+          <button onClick={onBack} style={{background:"none",color:B3,fontSize:12,fontWeight:600,cursor:"pointer",border:"none"}}>← Voltar ao processo seletivo</button>
+        </p>
       </div>
     </div>
   );
 }
-
 function Modal({c,onClose}){
   const [ascore,setAscore]=useState(c.as);
   const top=Object.entries({A:c.A,B:c.B,C:c.C,D:c.D}).sort((a,b)=>b[1]-a[1])[0];
