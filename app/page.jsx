@@ -602,6 +602,22 @@ function AdminPanel({onBack}){
   const [saving,setSaving]=useState(null);
   const [msg,setMsg]=useState("");
 
+  async function excluirCandidato(c){
+  const id = c.id || c.candidato_id;
+
+  if(!confirm("Excluir este candidato?")) return;
+
+  await fetch("/api/candidatos/delete", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ candidato_id: id })
+  });
+
+  alert("Excluído!");
+  location.reload();
+}
+
+  
   async function carregar(){
     try{
       setLoading(true);
@@ -873,6 +889,21 @@ function AdminPanel({onBack}){
               <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr",gap:16}}>
                 <div>
                   <h3 style={{color:B1,fontWeight:900,marginBottom:4}}>{nome(c)}</h3>
+                  <button
+  onClick={()=>excluirCandidato(c)}
+  style={{
+    background:"#DC2626",
+    color:"#fff",
+    border:"none",
+    borderRadius:6,
+    padding:"4px 8px",
+    fontSize:12,
+    cursor:"pointer",
+    marginTop:5
+  }}
+>
+  🗑️
+</button>
                   <div style={{fontSize:12,color:G600,marginBottom:8}}>{email(c)} {telefone(c)?` · ${telefone(c)}`:""} · {cidade(c)} {estado(c)} · Código: {c.codigo||'-'}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8,marginTop:10}}>
                     <div><strong style={{fontSize:12,color:B1}}>Currículo:</strong><div style={{marginTop:5}}><ArquivoBotoes c={c} tipo="curriculo" label="curriculo"/></div></div>
