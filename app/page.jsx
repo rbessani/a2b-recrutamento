@@ -887,7 +887,7 @@ Essa ação não pode ser desfeita.`
     function setCheck(key,val){setVals(p=>({...p,[key]:val}));}
 
     const completo=CRITERIOS_AUDIO.every(cr=>vals[cr.key]!==undefined);
-    const score=completo?Math.round(CRITERIOS_AUDIO.reduce((s,cr)=>s+(vals[cr.key]*cr.peso),0)):null;
+    const score=completo?Math.round(CRITERIOS_AUDIO.reduce((s,cr)=>s+(cr.opcoes.find(op=>op.l===vals[cr.key]).v*cr.peso),0)):null;
 
     async function salvarChecklist(){
       if(!completo)return;
@@ -900,7 +900,7 @@ Essa ação não pode ser desfeita.`
             candidato_id:id,
             score_curriculo:cv===""?null:Number(cv),
             score_audio:score,
-            criterios_audio:vals,
+            criterios_audio:Object.fromEntries(CRITERIOS_AUDIO.map(cr=>[cr.key,cr.opcoes.find(op=>op.l===vals[cr.key]).v])),
             observacao:document.getElementById(`observacao-${id}`)?.value||'',
           score_comportamental:scoreComp(c)
           })
@@ -942,9 +942,9 @@ Essa ação não pode ser desfeita.`
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                     {cr.opcoes.map(op=>{
-                      const sel=vals[cr.key]===op.v;
+                      const sel=vals[cr.key]===op.l;
                       return(
-                        <button key={op.l} onClick={()=>setCheck(cr.key,op.v)} style={{fontSize:10.5,fontWeight:sel?800:500,padding:"4px 8px",borderRadius:6,cursor:"pointer",background:sel?B2:"#fff",color:sel?"#fff":G600,border:"1.5px solid "+(sel?B2:G200)}}>
+                        <button key={op.l} aria-pressed={sel} onClick={()=>setCheck(cr.key,op.l)} style={{fontSize:10.5,fontWeight:sel?800:500,padding:"4px 8px",borderRadius:6,cursor:"pointer",background:sel?B2:"#fff",color:sel?"#fff":G600,border:"1.5px solid "+(sel?B2:G200)}}>
                           {op.l}
                         </button>
                       );
@@ -1065,9 +1065,13 @@ Essa ação não pode ser desfeita.`
           <style>{`.candidato-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px}@media(max-width:900px){.candidato-layout{grid-template-columns:minmax(0,1fr)}}`}</style>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
             <h2 style={{fontWeight:800,color:B1,fontSize:"1.3rem"}}>Candidatos</h2>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar nome ou e-mail..." style={{border:`1.5px solid ${G200}`,borderRadius:8,padding:"7px 12px",fontSize:12.5,outline:"none",width:240,background:G50}}/>
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar nome ou e-mail..." style={{border:`1.5px solid ${G200}`,borderRadius:8,padding:"7px 12px",fontSize:12.5,outline:"none",width:240,background:G50}}/>
+              <button onClick={carregar} disabled={loading||!vagaSelecionada} style={{background:BP,color:B1,border:`1px solid ${B100}`,borderRadius:8,padding:"8px 12px",fontWeight:800,cursor:loading||!vagaSelecionada?"default":"pointer",opacity:(loading||!vagaSelecionada)?0.6:1}}>{loading?"Atualizando...":"Atualizar"}</button>
+            </div>
           </div>
-          {loading&&<p>Carregando...</p>}
+          {loading&&<p role="status">Carregando candidatos...</p>}
+          {!loading&&!erro&&!filtrados.length&&<Card><p role="status" style={{color:G600}}>{search.trim()?"Nenhum candidato encontrado para esta busca. Limpe a busca ou clique em Atualizar.":"Nenhum candidato nesta vaga. Clique em Atualizar para buscar novas inscrições."}</p></Card>}
           {!loading&&filtrados.map(c=>(
             <Card key={cid(c)} style={{marginBottom:20}}>
               <div style={{display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",marginBottom:20}}>
