@@ -1,3 +1,4 @@
+import { uploadError } from '@/lib/uploads.mjs'
 import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
@@ -16,11 +17,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'candidato_id e arquivo obrigatórios' }, { status: 400 })
     }
 
-    const tiposPermitidos = ['application/pdf', 'application/msword',
+    const tiposPermitidos = ['application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     if (!tiposPermitidos.includes(arquivo.type)) {
       return NextResponse.json({ error: 'Use PDF ou DOCX.' }, { status: 400 })
     }
+
+    const mensagemArquivo = uploadError(arquivo)
+    if (mensagemArquivo) return NextResponse.json({ error: mensagemArquivo }, { status: arquivo.size > 4_000_000 ? 413 : 400 })
 
     // Busca versão atual
     const { data: atual } = await supabaseAdmin

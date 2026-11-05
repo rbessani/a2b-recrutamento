@@ -1,3 +1,4 @@
+import { uploadError } from '@/lib/uploads.mjs'
 import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
@@ -16,9 +17,9 @@ export async function POST(req) {
       return NextResponse.json({ error: 'candidato_id e arquivo obrigatórios' }, { status: 400 })
     }
 
-    if (arquivo.size > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Arquivo muito grande. Máximo 50MB.' }, { status: 400 })
-    }
+
+    const mensagemArquivo = uploadError(arquivo)
+    if (mensagemArquivo) return NextResponse.json({ error: mensagemArquivo }, { status: arquivo.size > 4_000_000 ? 413 : 400 })
 
     // Busca versão atual
     const { data: atual } = await supabaseAdmin

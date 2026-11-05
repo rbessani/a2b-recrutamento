@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import GestaoVagas from "@/components/GestaoVagas";
 import { DEFAULT_SCRIPT } from "@/lib/vagas.mjs";
+import { uploadError, readUploadResponse } from "@/lib/uploads.mjs";
 
 const B1="#003E8A",B2="#005DB5",B3="#0088CC",B4="#00ADEF",BP="#E8F4FC",B100="#D0E8F7";
 const GRN="#16A34A",RED="#DC2626",AMB="#D97706";
@@ -437,7 +438,12 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
   const [err,setErr]=useState(false);
   const [modoUpload,setModoUpload]=useState(false);
 
-  function handleAudioPronto(arquivo){setFile(arquivo);setErr(false);}
+  function selecionarArquivo(arquivo){
+    const mensagem=uploadError(arquivo);
+    setErr(mensagem);
+    setFile(mensagem?null:arquivo);
+  }
+  function handleAudioPronto(arquivo){selecionarArquivo(arquivo);}
 
   return(
     <div style={{maxWidth:700,margin:"0 auto",padding:"28px 16px"}}>
@@ -486,7 +492,7 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
         {(!isAudio||modoUpload)&&(
           <div>
             <label style={{border:"2px dashed "+(file?GRN:G200),borderRadius:12,padding:"28px 20px",textAlign:"center",cursor:"pointer",display:"block",background:file?"rgba(22,163,74,.04)":G50,transition:"all .2s"}}>
-              <input type="file" accept={accept} style={{display:"none"}} onChange={e=>{setFile(e.target.files[0]);setErr(false);}}/>
+              <input type="file" accept={accept} style={{display:"none"}} onChange={e=>{if(e.target.files[0])selecionarArquivo(e.target.files[0]);e.target.value="";}}/>
               <div style={{fontSize:32,marginBottom:7}}>{file?"✅":icon}</div>
               <div style={{fontWeight:700,color:G800,marginBottom:4,fontSize:14}}>{file?file.name:"Clique para selecionar o arquivo"}</div>
               <div style={{fontSize:12,color:G400}}>{file?"Arquivo selecionado — pronto para envio":hint}</div>
@@ -495,11 +501,12 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
           </div>
         )}
 
-        {err&&<p style={{color:RED,fontSize:11,marginTop:8}}>Selecione ou grave um áudio para continuar.</p>}
+        <p style={{color:G600,fontSize:12,marginTop:10}}>Tamanho máximo: 4 MB por arquivo.</p>
+        {err&&<p role="alert" style={{color:RED,fontSize:12,marginTop:8}}>{err}</p>}
 
         <div style={{display:"flex",justifyContent:"space-between",marginTop:20}}>
           <Btn sec onClick={onBack}>← Voltar</Btn>
-          <Btn onClick={()=>{if(!file){setErr(true);return;}onNext(file);}} disabled={loading}>
+          <Btn onClick={()=>{const mensagem=uploadError(file);if(mensagem){setErr(mensagem);return;}onNext(file);}} disabled={loading}>
             {loading?"Enviando...":(step===5?"Finalizar Candidatura ✓":"Continuar →")}
           </Btn>
         </div>
@@ -1148,13 +1155,13 @@ async function apiPost(url, data) {
 }
 
 async function apiUpload(url, candidato_id, arquivo) {
+  const mensagem = uploadError(arquivo)
+  if (mensagem) throw new Error(mensagem)
   const fd = new FormData()
   fd.append('candidato_id', candidato_id)
   fd.append('arquivo', arquivo)
   const res = await fetch(url, { method: 'POST', body: fd })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Erro no upload')
-  return json
+  return readUploadResponse(res)
 }
 
 export default function App(){
@@ -1238,8 +1245,8 @@ export default function App(){
       {step===1&&<P1 onNext={()=>setStep(2)} onBack={()=>setStep(0)}/>}
       {step===2&&<P2 onNext={handleDados} onBack={()=>setStep(1)} loading={loading}/>}
       {step===3&&<P3 onNext={handleComportamental} onBack={()=>setStep(2)}/>}
-      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 25MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>setStep(3)} loading={loading}/>}
-      {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.doc,.docx" hint="PDF ou DOCX — Máx 10MB" onNext={handleUploadCurriculo} onBack={()=>setStep(4)} loading={loading}/>}
+      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 4 MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>setStep(3)} loading={loading}/>}
+      {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.docx" hint="PDF ou DOCX — Máx 4 MB" onNext={handleUploadCurriculo} onBack={()=>setStep(4)} loading={loading}/>}
       {step===6&&<P6 data={data}/>}
     </div>
   );
