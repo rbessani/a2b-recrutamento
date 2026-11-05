@@ -1,17 +1,16 @@
+import { candidateCookie, cookieOptions, signSession } from '@/lib/session.mjs'
+import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { gerarCodigoBSN } from '@/lib/helpers'
 import { NextResponse } from 'next/server'
 
 const EMPRESA_ID = process.env.NEXT_PUBLIC_EMPRESA_ID
 
-function publicUrl(bucket, caminho) {
-  if (!bucket || !caminho) return null
-  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(caminho)
-  return data?.publicUrl || null
-}
+export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
   try {
+    const denied = requireAdmin(req); if (denied) return denied
     const { searchParams } = new URL(req.url)
     const vaga_id = searchParams.get('vaga_id')
 
@@ -33,12 +32,13 @@ export async function GET(req) {
     if (ids.length > 0) {
       const { data, error: cadastroError } = await supabaseAdmin
         .from('candidatos')
-        .select('id, created_at')
+        .select('id, created_at, decisao_selecao')
         .eq('empresa_id', EMPRESA_ID)
         .in('id', ids)
       if (cadastroError) throw cadastroError
       cadastros = data || []
     }
+    const decisoes = new Map(cadastros.map(c => [c.id, c.decisao_selecao]))
     const datasCadastro = new Map(cadastros.map(c => [c.id, c.created_at]))
 
     // A view de ranking pode não expor as pontuações dos perfis.
@@ -75,17 +75,31 @@ export async function GET(req) {
       arquivos = arquivosData || []
     }
 
+    const observacoes = new Map()
+    if (ids.length) {
+      const { data: avaliacoes, error: avalError } = await supabaseAdmin.from('avaliacoes_ia').select('candidato_id, json_avaliacao').in('candidato_id', ids).eq('empresa_id', EMPRESA_ID).eq('ativo', true)
+      if (avalError) throw avalError
+      for (const avaliacao of avaliacoes || []) observacoes.set(avaliacao.candidato_id, avaliacao.json_avaliacao?.avaliacao_manual?.observacao || '')
+    }
+    const urls = new Map()
+    for (const arquivo of arquivos) {
+      const { data: link, error: linkError } = await supabaseAdmin.storage.from(arquivo.bucket).createSignedUrl(arquivo.caminho_storage, 600)
+      if (linkError) throw linkError
+      urls.set(arquivo.id, link.signedUrl)
+    }
     const candidatosComArquivos = (candidatos || []).map(candidato => {
       const arquivosDoCandidato = arquivos
         .filter(a => a.candidato_id === (candidato.id || candidato.candidato_id))
         .map(a => ({
           ...a,
-          url_publica: publicUrl(a.bucket, a.caminho_storage)
+          url_publica: urls.get(a.id) || null
         }))
 
       return {
         ...candidato,
         ...(resultadosPorCandidato.get(candidato.id || candidato.candidato_id) || {}),
+        decisao_selecao: decisoes.get(candidato.id || candidato.candidato_id) || 'em_analise',
+        observacao_avaliacao: observacoes.get(candidato.id || candidato.candidato_id) || '',
         data_cadastro: datasCadastro.get(candidato.id || candidato.candidato_id) || null,
         arquivos: arquivosDoCandidato,
         audio: arquivosDoCandidato.find(a => a.tipo === 'audio') || null,
@@ -93,17 +107,23 @@ export async function GET(req) {
       }
     })
 
-    return NextResponse.json({ candidatos: candidatosComArquivos })
+    return NextResponse.json({ candidatos: candidatosComArquivos }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (err) {
     console.error('[GET /api/candidatos]', err)
-    return NextResponse.json({ error: 'Erro ao buscar candidatos', detalhe: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao buscar candidatos', detalhe: 'Consulte o administrador do sistema.' }, { status: 500 })
   }
 }
 
 export async function POST(req) {
   try {
+    const originError = checkOrigin(req); if (originError) return originError
     const body = await req.json()
-    const { vaga_id, nome, email, telefone, whatsapp, cidade, estado, linkedin } = body
+    const { vaga_id, nome, email, telefone, whatsapp, cidade, estado, linkedin, lgpd_aceito } = body
+    if (lgpd_aceito !== true) return failure("É necessário aceitar os termos de privacidade.", 400)
+    if (vaga_id && vaga_id !== process.env.NEXT_PUBLIC_VAGA_ID) return failure("Vaga inválida.", 400)
+    const { data: vaga, error: vagaError } = await supabaseAdmin.from("vagas").select("id").eq("id", process.env.NEXT_PUBLIC_VAGA_ID).eq("empresa_id", EMPRESA_ID).eq("status", "ativa").maybeSingle()
+    if (vagaError) throw vagaError
+    if (!vaga) return failure("Vaga indisponível.", 400)
 
     if (!nome) return NextResponse.json({ error: 'Nome obrigatório' }, { status: 400 })
     if (!email) return NextResponse.json({ error: 'E-mail obrigatório' }, { status: 400 })
@@ -154,9 +174,11 @@ export async function POST(req) {
       mensagem: `Candidato ${data.codigo} inscrito.`,
     })
 
-    return NextResponse.json({ candidato: data }, { status: 201 })
+    const response = NextResponse.json({ candidato: data }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
+    response.cookies.set(candidateCookie(data.id), signSession('candidate', data.id, 24 * 3600), cookieOptions(24 * 3600))
+    return response
   } catch (err) {
     console.error('[POST /api/candidatos]', err)
-    return NextResponse.json({ error: 'Erro ao registrar candidato', detalhe: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao registrar candidato', detalhe: 'Consulte o administrador do sistema.' }, { status: 500 })
   }
 }

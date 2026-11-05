@@ -1,3 +1,4 @@
+import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
@@ -6,23 +7,28 @@ const QUESTIONARIO_ID = process.env.NEXT_PUBLIC_QUESTIONARIO_ID
 
 export async function POST(req) {
   try {
+    const originError = checkOrigin(req); if (originError) return originError
     const body = await req.json()
     const { candidato_id, respostas } = body
+    const candidateError = await requireCandidate(req, candidato_id); if (candidateError) return candidateError
     // respostas = { "1": "A", "2": "D", ... } — chave é ordem da pergunta, valor é letra
 
     if (!candidato_id || !respostas) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
+    if (typeof respostas !== 'object' || Array.isArray(respostas) || Object.keys(respostas).length !== 25 || !Array.from({length:25}, (_,i)=>String(i+1)).every(k => Object.hasOwn(respostas,k) && ['A','B','C','D'].includes(respostas[k]))) return failure('Responda às 25 perguntas antes de continuar.', 400)
     // Busca pesos da vaga
-    const { data: candidato } = await supabaseAdmin
+    const { data: candidato, error: candidatoError } = await supabaseAdmin
       .from('candidatos').select('vaga_id').eq('id', candidato_id).single()
 
-    const { data: vaga } = await supabaseAdmin
+    if (candidatoError || !candidato) throw new Error("Inscrição não encontrada")
+    const { data: vaga, error: vagaError } = await supabaseAdmin
       .from('vagas')
       .select('peso_perfil_a, peso_perfil_b, peso_perfil_c, peso_perfil_d')
       .eq('id', candidato.vaga_id).single()
 
+    if (vagaError || !vaga) throw new Error("Vaga não encontrada")
     // Conta respostas por letra
     const contagem = { A: 0, B: 0, C: 0, D: 0 }
     Object.values(respostas).forEach(letra => {
@@ -43,7 +49,7 @@ export async function POST(req) {
       .sort((a, b) => b[1] - a[1])[0][0]
 
     // Salva resultado
-    await supabaseAdmin
+    const { error: resultadoError } = await supabaseAdmin
       .from('resultado_comportamental')
       .upsert({
         empresa_id: EMPRESA_ID,
@@ -58,12 +64,14 @@ export async function POST(req) {
         json_resultado: { contagem, pontuacoes: { A: pA, B: pB, C: pC, D: pD } },
       }, { onConflict: 'candidato_id,questionario_id' })
 
-    await supabaseAdmin
+    if (resultadoError) throw resultadoError
+    const { error: statusError } = await supabaseAdmin
       .from('candidatos')
       .update({ status: 'comportamental_respondido' })
       .eq('id', candidato_id)
 
-    await supabaseAdmin.from('logs_processamento').insert({
+    if (statusError) throw statusError
+    const { error: logError } = await supabaseAdmin.from('logs_processamento').insert({
       empresa_id: EMPRESA_ID,
       candidato_id,
       etapa: 'comportamental',
@@ -71,6 +79,7 @@ export async function POST(req) {
       mensagem: `Perfil: ${perfilDominante} | Score: ${scoreComp}`,
     })
 
+    if (logError) throw logError
     return NextResponse.json({
       resultado: { perfil_dominante: perfilDominante, score_comportamental: scoreComp, contagem }
     }, { status: 201 })

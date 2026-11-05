@@ -1,3 +1,4 @@
+import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
@@ -5,9 +6,11 @@ const EMPRESA_ID = process.env.NEXT_PUBLIC_EMPRESA_ID
 
 export async function POST(req) {
   try {
+    const originError = checkOrigin(req); if (originError) return originError
     const formData = await req.formData()
     const candidato_id = formData.get('candidato_id')
     const arquivo = formData.get('arquivo')
+    const candidateError = await requireCandidate(req, candidato_id); if (candidateError) return candidateError
 
     if (!candidato_id || !arquivo) {
       return NextResponse.json({ error: 'candidato_id e arquivo obrigatórios' }, { status: 400 })

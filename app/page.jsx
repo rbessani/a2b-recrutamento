@@ -556,7 +556,15 @@ function P6({data}){
 
 function AdminLogin({onLogin,onBack}){
   const [u,setU]=useState("admin");
-  const [p,setP]=useState("bessani2024");
+  const [p,setP]=useState("");
+  const [entrando,setEntrando]=useState(false);
+  async function entrar(){
+    if(entrando)return;
+    setEntrando(true);setErr(false);
+    try{const res=await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usuario:u,senha:p})});if(!res.ok)throw new Error();setP("");onLogin();}
+    catch{setErr(true);}
+    finally{setEntrando(false);}
+  }
   const [err,setErr]=useState(false);
   return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`linear-gradient(135deg,${B1},${B2})`,padding:16}}>
@@ -577,7 +585,7 @@ function AdminLogin({onLogin,onBack}){
           <label style={{fontSize:12,fontWeight:600,color:G700,display:"block",marginBottom:4}}>Senha</label>
           <input type="password" value={p} onChange={e=>setP(e.target.value)} style={{border:`1.5px solid ${G200}`,borderRadius:9,padding:"9px 11px",fontSize:13,width:"100%",outline:"none",background:G50}}/>
         </div>
-        <Btn onClick={()=>{if(u==="admin"&&p==="bessani2024")onLogin();else setErr(true);}}>Entrar no Painel</Btn>
+        <Btn onClick={entrar}>{entrando?"Entrando…":"Entrar no Painel"}</Btn>
         <p style={{textAlign:"center",marginTop:6}}><button onClick={onBack} style={{background:"none",color:B3,fontSize:12,fontWeight:600,cursor:"pointer",border:"none"}}>← Voltar ao processo seletivo</button></p>
       </div>
     </div>
@@ -759,7 +767,8 @@ function AdminPanel({onBack}){
         body:JSON.stringify({
           candidato_id:id,
           score_curriculo:cv===""?null:Number(cv),
-          score_audio:audio===""?null:Number(audio),
+          score_audio:audio===undefined?Number(scoreAudio(c)||0):(audio===""?null:Number(audio)),
+          observacao:document.getElementById(`observacao-${id}`)?.value||'',
           score_comportamental:scoreComp(c)
         })
       });
@@ -774,6 +783,10 @@ function AdminPanel({onBack}){
     }
   }
 
+  async function salvarDecisao(c, decisao){
+    try{setErro('');const res=await fetch('/api/candidatos/decisao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidato_id:cid(c),decisao})});const json=await res.json();if(!res.ok)throw new Error(json.error);await carregar();}
+    catch(e){setErro(e.message||'Não foi possível salvar a decisão.');}
+  }
   async function excluirCandidato(c){
     const id=cid(c);
     const nomeCandidato=nome(c);
@@ -877,7 +890,9 @@ Essa ação não pode ser desfeita.`
             candidato_id:id,
             score_curriculo:cv===""?null:Number(cv),
             score_audio:score,
-            score_comportamental:scoreComp(c)
+            criterios_audio:vals,
+            observacao:document.getElementById(`observacao-${id}`)?.value||'',
+          score_comportamental:scoreComp(c)
           })
         });
         const json=await res.json();
@@ -1050,6 +1065,11 @@ Essa ação não pode ser desfeita.`
                 </div>
                 <span style={{padding:"6px 10px",border:"1px solid "+B100,borderRadius:8,background:BP,color:B1,fontSize:12,fontWeight:700}}>{status(c).replace(/_/g," ")}</span>
               </div>
+              <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:16,alignItems:'center'}}>
+                <label style={{fontSize:13,color:B1}}>Decisão de seleção: <select aria-label="Decisão de seleção" value={c.decisao_selecao||'em_analise'} onChange={e=>salvarDecisao(c,e.target.value)} style={{padding:8,borderRadius:8,border:'1px solid '+G200}}><option value="em_analise">Em análise</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option></select></label>
+                <label style={{fontSize:13,color:B1}}>Observação da avaliação: <textarea id={`observacao-${cid(c)}`} maxLength={3000} defaultValue={c.observacao_avaliacao||''} placeholder="Registre o motivo da nota; será salvo ao avaliar currículo ou áudio." style={{display:'block',minWidth:260,padding:8,borderRadius:8,border:'1px solid '+G200}}/></label>
+                <small style={{color:G600}}>Andamento: {status(c).replace(/_/g,' ')}. A decisão não altera as notas.</small>
+              </div>
               <div className="candidato-layout">
                 <div style={{display:"flex",flexDirection:"column",gap:14,minWidth:0}}>
                   <section style={{border:"1px solid "+G200,borderRadius:12,padding:16}}>
@@ -1128,11 +1148,15 @@ export default function App(){
   const [erro,setErro]=useState(null);
   const save=(d)=>setData(p=>({...p,...d}));
 
+  async function sairAdmin(){
+    try{const res=await fetch('/api/admin/logout',{method:'POST'});if(!res.ok)throw new Error();setView('cand');}
+    catch{window.alert('Não foi possível encerrar a sessão. Tente novamente.');}
+  }
   if(view==="login") return <AdminLogin onLogin={()=>setView("admin")} onBack={()=>setView("cand")}/>;
   if(view==="admin") return(
     <div style={{fontFamily:"system-ui,sans-serif"}}>
-      <Hdr onAdmin={()=>setView("cand")} isAdmin/>
-      <AdminPanel onBack={()=>setView("cand")}/>
+      <Hdr onAdmin={sairAdmin} isAdmin/>
+      <AdminPanel onBack={sairAdmin}/>
     </div>
   );
 
@@ -1157,7 +1181,7 @@ export default function App(){
       });
       save({ans});setStep(4);
     }catch(e){
-      save({ans});setStep(4); // avança mesmo se falhar
+      setErro(e.message||"Não foi possível salvar as respostas. Tente novamente.");
     }finally{setLoading(false);}
   }
 

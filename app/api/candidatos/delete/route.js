@@ -1,9 +1,13 @@
+import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
 export async function POST(req) {
   try {
+    const originError = checkOrigin(req); if (originError) return originError
+    const adminError = requireAdmin(req); if (adminError) return adminError
     const { candidato_id } = await req.json()
+    const candidateError = await requireCandidate(req, candidato_id); if (candidateError) return candidateError
 
     if (!candidato_id) {
       return NextResponse.json({ error: 'candidato_id obrigatório' }, { status: 400 })
@@ -41,7 +45,7 @@ export async function POST(req) {
     console.error('[POST /api/candidatos/delete]', err)
     return NextResponse.json({
       error: 'Erro ao excluir candidato',
-      detalhe: err.message
+      detalhe: 'Consulte o administrador do sistema.'
     }, { status: 500 })
   }
 }
