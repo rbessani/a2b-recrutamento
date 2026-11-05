@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/security.mjs && node tests/comportamental.mjs"
+    "test": "node tests/security.mjs && node tests/comportamental.mjs && node tests/vagas.mjs"
   },
   "dependencies": {
     "next": "14.2.0",

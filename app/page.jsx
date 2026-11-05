@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import GestaoVagas from "@/components/GestaoVagas";
+import { DEFAULT_SCRIPT } from "@/lib/vagas.mjs";
 
 const B1="#003E8A",B2="#005DB5",B3="#0088CC",B4="#00ADEF",BP="#E8F4FC",B100="#D0E8F7";
 const GRN="#16A34A",RED="#DC2626",AMB="#D97706";
@@ -430,7 +432,7 @@ function GravadorAudio({onAudioPronto}){
   );
 }
 
-function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,loading=false}){
+function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,roteiroAudio=DEFAULT_SCRIPT,loading=false}){
   const [file,setFile]=useState(null);
   const [err,setErr]=useState(false);
   const [modoUpload,setModoUpload]=useState(false);
@@ -448,10 +450,9 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,loadi
         {/* Script de prospecção */}
         {isAudio&&(
           <div style={{marginBottom:20}}>
-            <p style={{fontWeight:800,color:B1,marginBottom:10,fontSize:13}}>📜 Script de Prospecção</p>
+            <p style={{fontWeight:800,color:B1,marginBottom:10,fontSize:13}}>📜 Instrução para o áudio</p>
             <div style={{background:B1,borderRadius:9,padding:"14px 16px",color:"rgba(255,255,255,.82)",fontSize:13,lineHeight:1.85,borderLeft:"4px solid "+B4}}>
-              <em style={{color:B4}}>[Configurável no painel admin]</em><br/><br/>
-              <span style={{opacity:.85}}>"Olá, bom dia! Meu nome é [SEU NOME] da Bessani Soluções. Trabalhamos com gestão empresarial há mais de 30 anos. Você teria 3 minutinhos?"</span>
+              <span style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{roteiroAudio}</span>
             </div>
           </div>
         )}
@@ -649,13 +650,11 @@ function Modal({c,onClose}){
 }
 
 // ── Perfil comportamental: ranking (1º e 2º) e barras do card ──
-const PESO_PERFIL={A:1,B:2,C:1,D:2}; // mesmos pesos da vaga (Águia 1, Lobo 2, Golfinho 1, Tubarão 2)
-function ptsPerfil(c,k){const v=Number(c["pontuacao_"+k.toLowerCase()]);return isNaN(v)?0:v;}
 function contagemPerfil(c,k){
   const v=c.json_resultado?.contagem?.[k];
   return v!==undefined && v!==null && Number.isFinite(Number(v))
     ? Math.max(0,Number(v))
-    : Math.round(ptsPerfil(c,k)/PESO_PERFIL[k]);
+    : 0;
 }
 function perfisOrdenados(c){
   const l=["A","B","C","D"].map(k=>[k,contagemPerfil(c,k)]);
@@ -709,6 +708,15 @@ function PerfilBarras({c}){
 
 function AdminPanel({onBack}){
   const [tab,setTab]=useState("dash");
+  const [vagas,setVagas]=useState([]);
+  const [vagaSelecionada,setVagaSelecionada]=useState("");
+  const consultaAtual=useRef(0);
+  async function carregarVagas(){
+    const res=await fetch('/api/vagas',{cache:'no-store'});const json=await res.json();if(!res.ok)throw new Error(json.error||'Erro ao buscar vagas');setVagas(json.vagas||[]);return json.vagas||[];
+  }
+  function selecionarVaga(id){if(id===vagaSelecionada){setSearch('');carregar();return;}consultaAtual.current++;setCandidatos([]);setSearch('');setVagaSelecionada(id);}
+  const vagaAtual=vagas.find(v=>v.id===vagaSelecionada);
+
   const [candidatos,setCandidatos]=useState([]);
   const [loading,setLoading]=useState(true);
   const [erro,setErro]=useState("");
@@ -717,21 +725,23 @@ function AdminPanel({onBack}){
   const [msg,setMsg]=useState("");
 
   async function carregar(){
+    if(!vagaSelecionada)return;
+    const numeroConsulta=++consultaAtual.current;
     try{
       setLoading(true);
       setErro("");
-      const res=await fetch('/api/candidatos',{cache:'no-store'});
+      const res=await fetch('/api/candidatos?vaga_id='+encodeURIComponent(vagaSelecionada),{cache:'no-store'});
       const json=await res.json();
       if(!res.ok) throw new Error(json.error||json.detalhe||'Erro ao buscar candidatos');
-      setCandidatos(json.candidatos||[]);
+      if(numeroConsulta===consultaAtual.current)setCandidatos(json.candidatos||[]);
     }catch(e){
-      setErro(e.message||'Erro ao carregar candidatos');
+      if(numeroConsulta===consultaAtual.current)setErro(e.message||'Erro ao carregar candidatos');
     }finally{
-      setLoading(false);
+      if(numeroConsulta===consultaAtual.current)setLoading(false);
     }
   }
-
-  useEffect(()=>{carregar();},[]);
+  useEffect(()=>{let ativo=true;carregarVagas().then(lista=>{if(ativo){const padrao=lista.find(v=>v.id===process.env.NEXT_PUBLIC_VAGA_ID)||lista[0];setVagaSelecionada(padrao?.id||'');setLoading(false);}}).catch(e=>{if(ativo){setErro(e.message);setLoading(false);}});return()=>{ativo=false;consultaAtual.current++;};},[]);
+  useEffect(()=>{if(vagaSelecionada)carregar();},[vagaSelecionada]);
 
   function cid(c){return c.candidato_id||c.id;}
   function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
@@ -837,7 +847,7 @@ Essa ação não pode ser desfeita.`
   const filtrados=rankingCompleto.filter(c=>!search||nome(c).toLowerCase().includes(search.toLowerCase())||email(c).toLowerCase().includes(search.toLowerCase()));
 
   const media=filtrados.length?Math.round(filtrados.reduce((s,c)=>s+scoreTotal(c),0)/filtrados.length):0;
-  const tabs=[{id:"dash",l:"Dashboard"},{id:"rank",l:"Ranking"},{id:"cands",l:"Candidatos"}];
+  const tabs=[{id:"vagas",l:"Vagas"},{id:"dash",l:"Dashboard"},{id:"rank",l:"Ranking"},{id:"cands",l:"Candidatos"}];
 
   function ArquivoBotoes({c,tipo,label}){
     const lista=arquivos(c,tipo);
@@ -1008,6 +1018,8 @@ Essa ação não pode ser desfeita.`
         {erro&&<div style={{background:"rgba(220,38,38,.08)",color:RED,border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"10px 14px",fontSize:13,marginBottom:12}}>Erro: {erro}</div>}
         {msg&&<div style={{background:"rgba(22,163,74,.08)",color:GRN,border:"1px solid rgba(22,163,74,.2)",borderRadius:9,padding:"10px 14px",fontSize:13,marginBottom:12}}>{msg}</div>}
 
+        <Card style={{marginBottom:18}}><label style={{fontWeight:700,color:B1}}>Vaga selecionada <select aria-label="Vaga selecionada" value={vagaSelecionada} onChange={e=>selecionarVaga(e.target.value)} style={{marginLeft:10,padding:9,border:'1px solid '+G200,borderRadius:8,maxWidth:'100%'}}><option value="">Selecione uma vaga</option>{vagas.map(v=><option key={v.id} value={v.id}>{v.titulo}{v.status==='ativa'?'':' ('+(v.status==='inativa'?'pausada':'encerrada')+')'}</option>)}</select></label><p style={{fontSize:12,color:G600,marginBottom:0}}>Indicadores, candidatos e posições correspondem à vaga selecionada.</p></Card>
+        {tab==="vagas"&&<GestaoVagas vagas={vagas} onRefresh={carregarVagas} onSelect={selecionarVaga}/>}
         {tab==="dash"&&(<>
           <h2 style={{fontWeight:800,color:B1,marginBottom:18,fontSize:"1.3rem"}}>Visão Geral</h2>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:20}}>
@@ -1027,6 +1039,7 @@ Essa ação não pode ser desfeita.`
             <h2 style={{fontWeight:800,color:B1,fontSize:"1.2rem"}}>🏆 Ranking de Candidatos</h2>
             <button onClick={carregar} style={{background:BP,color:B1,border:`1px solid ${B100}`,borderRadius:8,padding:"8px 12px",fontWeight:800,cursor:"pointer"}}>Atualizar</button>
           </div>
+          <div style={{background:BP,borderRadius:9,padding:12,marginBottom:14,color:B1,fontSize:13}}><strong>Composição da nota final</strong><div style={{marginTop:5}}>Comportamental <strong>40%</strong> · Currículo <strong>30%</strong> · Áudio <strong>30%</strong></div><div style={{fontSize:12,color:G600,marginTop:5}}>Itens não enviados recebem nota zero no cálculo.</div><div style={{marginTop:8}}>Maior influência comportamental: {vagaAtual?['A','B','C','D'].filter(k=>Number(vagaAtual['peso_perfil_'+k.toLowerCase()])===2).map(k=>PF[k].e+' '+PF[k].n).join(' · ')||'Todos os perfis com influência normal':'Selecione uma vaga'}</div></div>
           {loading&&<p style={{color:G600}}>Carregando candidatos...</p>}
           {!loading&&!filtrados.length&&<p style={{color:G600}}>Nenhum candidato encontrado ainda.</p>}
           {!loading&&!!filtrados.length&&<div style={{overflowX:"auto"}}>
@@ -1091,7 +1104,7 @@ Essa ação não pode ser desfeita.`
                       <h4 style={{margin:0,color:B1,fontSize:16}}>Áudio</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreAudio(c)===""?"—":scoreAudio(c)} / 100</span>
                     </div>
-                    <ArquivoBotoes c={c} tipo="audio" label="audio"/>
+                    <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
                 </div>
                 <aside style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:20,display:"flex",flexDirection:"column",minWidth:0}}>
@@ -1141,6 +1154,12 @@ async function apiUpload(url, candidato_id, arquivo) {
 }
 
 export default function App(){
+  const [vagaPublica,setVagaPublica]=useState(null);
+  const [erroVaga,setErroVaga]=useState('');
+  const [carregandoVaga,setCarregandoVaga]=useState(true);
+  useEffect(()=>{let ativo=true;const params=new URLSearchParams(window.location.search);const query=params.has('vaga')?'?vaga='+encodeURIComponent(params.get('vaga')):'';
+    fetch('/api/vagas/publica'+query,{cache:'no-store'}).then(async res=>{const json=await res.json();if(!res.ok)throw new Error(json.error||'Vaga indisponível.');if(ativo)setVagaPublica(json.vaga);}).catch(e=>{if(ativo)setErroVaga(e.message);}).finally(()=>{if(ativo)setCarregandoVaga(false);});return()=>{ativo=false;};},[]);
+
   const [view,setView]=useState("cand");
   const [step,setStep]=useState(0);
   const [data,setData]=useState({});
@@ -1164,9 +1183,9 @@ export default function App(){
     setLoading(true);setErro(null);
     try{
       const res=await apiPost('/api/candidatos',{
-        vaga_id:VAGA_ID,...formData,lgpd_aceito:true,
+        ...formData,vaga_id:vagaPublica?.id,lgpd_aceito:true,
       });
-      save({cand:formData,candidato_id:res.candidato.id,codigo:res.candidato.codigo});
+      save({cand:formData,candidato_id:res.candidato.id,codigo:res.candidato.codigo,roteiro_audio:res.candidato.roteiro_audio_inscricao||DEFAULT_SCRIPT});
       setStep(3);
     }catch(e){setErro(e.message);}
     finally{setLoading(false);}
@@ -1203,8 +1222,10 @@ export default function App(){
     finally{setLoading(false);}
   }
 
+  if(carregandoVaga||erroVaga)return <div style={{fontFamily:'system-ui,sans-serif',padding:32,textAlign:'center',color:B1}}><h1>{carregandoVaga?'Carregando oportunidade…':'Vaga indisponível'}</h1><p>{erroVaga}</p>{!carregandoVaga&&<button onClick={()=>window.location.reload()}>Tentar novamente</button>} <button onClick={()=>setView('login')}>Área Admin</button></div>;
   return(
     <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:G100}}>
+      <div style={{padding:'12px 20px',background:BP,color:B1,fontWeight:700,textAlign:'center'}}>Vaga: {vagaPublica?.titulo}{step===0&&vagaPublica?.descricao&&<p style={{whiteSpace:'pre-wrap',fontWeight:400,fontSize:14,maxWidth:900,margin:'8px auto'}}>{vagaPublica.descricao}</p>}</div>
       {step!==0&&<Hdr onAdmin={()=>setView("login")}/>}
       {step!==0&&<Prog step={step}/>}
       {erro&&<div style={{maxWidth:700,margin:"0 auto",padding:"8px 16px"}}><div style={{background:"rgba(220,38,38,.08)",color:"#DC2626",border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"10px 14px",fontSize:13}}>{erro}</div></div>}
@@ -1213,7 +1234,7 @@ export default function App(){
       {step===1&&<P1 onNext={()=>setStep(2)} onBack={()=>setStep(0)}/>}
       {step===2&&<P2 onNext={handleDados} onBack={()=>setStep(1)} loading={loading}/>}
       {step===3&&<P3 onNext={handleComportamental} onBack={()=>setStep(2)}/>}
-      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 25MB" isAudio onNext={handleUploadAudio} onBack={()=>setStep(3)} loading={loading}/>}
+      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 25MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>setStep(3)} loading={loading}/>}
       {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.doc,.docx" hint="PDF ou DOCX — Máx 10MB" onNext={handleUploadCurriculo} onBack={()=>setStep(4)} loading={loading}/>}
       {step===6&&<P6 data={data}/>}
     </div>

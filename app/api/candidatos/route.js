@@ -1,3 +1,4 @@
+import { validId } from '@/lib/vagas.mjs'
 import { candidateCookie, cookieOptions, signSession } from '@/lib/session.mjs'
 import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
 import { supabaseAdmin } from '@/lib/supabase'
@@ -12,7 +13,8 @@ export async function GET(req) {
   try {
     const denied = requireAdmin(req); if (denied) return denied
     const { searchParams } = new URL(req.url)
-    const vaga_id = searchParams.get('vaga_id')
+    const vaga_id = searchParams.has('vaga_id') ? searchParams.get('vaga_id') : process.env.NEXT_PUBLIC_VAGA_ID
+    if (!validId(vaga_id)) return failure('Selecione uma vaga válida.', 400)
 
     let query = supabaseAdmin
       .from('vw_ranking')
@@ -49,17 +51,14 @@ export async function GET(req) {
         .select('candidato_id, questionario_id, pontuacao_a, pontuacao_b, pontuacao_c, pontuacao_d, perfil_dominante, json_resultado')
         .eq('empresa_id', EMPRESA_ID)
         .in('candidato_id', ids)
-      const questionarioId = process.env.NEXT_PUBLIC_QUESTIONARIO_ID
-      if (questionarioId) consulta = consulta.eq('questionario_id', questionarioId)
       const { data, error: resultadoError } = await consulta
       if (resultadoError) throw resultadoError
       resultados = data || []
     }
+    const questionariosDaView = new Map((candidatos || []).map(c => [c.id || c.candidato_id, c.questionario_id]))
     const resultadosPorCandidato = new Map()
     for (const resultado of resultados) {
-      if (resultadosPorCandidato.has(resultado.candidato_id)) {
-        throw new Error('Mais de um questionário por candidato. Configure NEXT_PUBLIC_QUESTIONARIO_ID.')
-      }
+      if (resultado.questionario_id !== questionariosDaView.get(resultado.candidato_id)) continue
       resultadosPorCandidato.set(resultado.candidato_id, resultado)
     }
 
@@ -67,7 +66,7 @@ export async function GET(req) {
     if (ids.length > 0) {
       const { data: arquivosData, error: arquivosError } = await supabaseAdmin
         .from('arquivos_candidatos')
-        .select('id, candidato_id, tipo, bucket, caminho_storage, nome_arquivo, mime_type, tamanho_bytes, versao, ativo, status')
+        .select('id, candidato_id, tipo, bucket, caminho_storage, nome_arquivo, mime_type, tamanho_bytes, versao, ativo, status, roteiro_audio')
         .in('candidato_id', ids)
         .eq('ativo', true)
 
@@ -120,8 +119,9 @@ export async function POST(req) {
     const body = await req.json()
     const { vaga_id, nome, email, telefone, whatsapp, cidade, estado, linkedin, lgpd_aceito } = body
     if (lgpd_aceito !== true) return failure("É necessário aceitar os termos de privacidade.", 400)
-    if (vaga_id && vaga_id !== process.env.NEXT_PUBLIC_VAGA_ID) return failure("Vaga inválida.", 400)
-    const { data: vaga, error: vagaError } = await supabaseAdmin.from("vagas").select("id").eq("id", process.env.NEXT_PUBLIC_VAGA_ID).eq("empresa_id", EMPRESA_ID).eq("status", "ativa").maybeSingle()
+    const vagaSelecionada = vaga_id || process.env.NEXT_PUBLIC_VAGA_ID
+    if (!validId(vagaSelecionada)) return failure('Vaga inválida.', 400)
+    const { data: vaga, error: vagaError } = await supabaseAdmin.from("vagas").select("id").eq("id", vagaSelecionada).eq("empresa_id", EMPRESA_ID).eq("status", "ativa").maybeSingle()
     if (vagaError) throw vagaError
     if (!vaga) return failure("Vaga indisponível.", 400)
 
@@ -143,7 +143,7 @@ export async function POST(req) {
       .from('candidatos')
       .insert({
         empresa_id: EMPRESA_ID,
-        vaga_id: vaga_id || process.env.NEXT_PUBLIC_VAGA_ID,
+        vaga_id: vagaSelecionada,
         codigo,
         nome,
         email,
@@ -156,7 +156,7 @@ export async function POST(req) {
         lgpd_timestamp: new Date().toISOString(),
         status: 'novo',
       })
-      .select('id, codigo, nome, email')
+      .select('id, codigo, nome, email, roteiro_audio_inscricao')
       .single()
 
     if (error) {

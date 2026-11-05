@@ -29,6 +29,7 @@ export async function POST(req) {
       .eq('id', candidato.vaga_id).single()
 
     if (vagaError || !vaga) throw new Error("Vaga não encontrada")
+    if (![vaga.peso_perfil_a,vaga.peso_perfil_b,vaga.peso_perfil_c,vaga.peso_perfil_d].every(x=>Number.isFinite(Number(x)) && Number(x)>0)) return failure('Configuração comportamental inválida. Contate a empresa.', 400)
     // Conta respostas por letra
     const contagem = { A: 0, B: 0, C: 0, D: 0 }
     Object.values(respostas).forEach(letra => {
