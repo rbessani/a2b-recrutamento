@@ -45,14 +45,14 @@ export async function POST(req) {
     const caminho = `${candidato_id}/audio_v${novaVersao}.${ext}`
     const buffer = Buffer.from(await arquivo.arrayBuffer())
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: erroStorage } = await supabaseAdmin.storage
       .from('audios')
 .upload(caminho, buffer, { 
   contentType: arquivo.type?.split(";")[0] || "audio/webm", 
   upsert: false 
 })
 
-    if (uploadError) throw uploadError
+    if (erroStorage) throw erroStorage
 
     const { data: registro, error: dbError } = await supabaseAdmin
       .from('arquivos_candidatos')

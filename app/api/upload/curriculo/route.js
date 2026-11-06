@@ -52,11 +52,11 @@ export async function POST(req) {
     const caminho = `${candidato_id}/curriculo_v${novaVersao}.${ext}`
     const buffer = Buffer.from(await arquivo.arrayBuffer())
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: erroStorage } = await supabaseAdmin.storage
       .from('curriculos')
       .upload(caminho, buffer, { contentType: arquivo.type, upsert: false })
 
-    if (uploadError) throw uploadError
+    if (erroStorage) throw erroStorage
 
     // Registra no banco
     const { data: registro, error: dbError } = await supabaseAdmin
