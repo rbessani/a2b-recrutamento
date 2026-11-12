@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import ContextoCandidato from "@/components/ContextoCandidato";
 import ObservacaoRecrutador from "@/components/ObservacaoRecrutador";
 import ResumoRetomada from "@/components/ResumoRetomada";
 import EntradaCandidatura from "@/components/EntradaCandidatura";
@@ -771,7 +772,7 @@ Essa ação não pode ser desfeita.`
       {url?<a className="acao-arquivo" href={url} target="_blank" rel="noreferrer">{tipo==='audio'?'Abrir áudio':'Visualizar currículo'}</a>:<span className="acao-arquivo indisponivel">{a?'Arquivo sem link':'Não enviado'}</span>}
       {url?<a className="acao-arquivo" href={url} download={a.nome_arquivo||label}>Baixar</a>:<span className="acao-arquivo indisponivel">Baixar</span>}
     </>;
-    if(tipo==='audio')return <ChecklistAudio c={c} controles={controles} player={url?<audio controls src={url} style={{width:'100%',height:40,display:'block',marginBottom:14}}/>:<p style={{fontSize:12,color:G400}}>{a?'Arquivo sem link':'Áudio não enviado'}</p>}/>;
+    if(tipo==='audio')return <ChecklistAudio c={c} controles={controles} player={url?<audio controls src={url} style={{width:'100%',height:32,display:'block',marginBottom:8}}/>:<p style={{fontSize:12,color:G400}}>{a?'Arquivo sem link':'Áudio não enviado'}</p>}/>;
     return <div className="acoes-candidato">{controles}{acao}</div>;
   }
 
@@ -881,7 +882,7 @@ Essa ação não pode ser desfeita.`
   function AvaliacaoCurriculo({c}){
     const id=cid(c);
     return <div>
-      <label htmlFor={"cv-"+id} style={{fontSize:12,fontWeight:700,color:G600,display:'flex',alignItems:'center',gap:10,marginBottom:14}}>Nota do currículo
+      <label htmlFor={"cv-"+id} style={{fontSize:12,fontWeight:700,color:G600,display:'flex',alignItems:'center',gap:10,marginBottom:8}}>Nota do currículo
         <input id={"cv-"+id} type="number" min="0" max="100" step="1" defaultValue={scoreCV(c)} placeholder="0-100" style={{width:100,border:"1px solid "+G200,borderRadius:7,padding:"7px 8px",fontWeight:800}}/>
       </label>
       <ArquivoBotoes c={c} tipo="curriculo" label="curriculo" acao={<button className="acao-arquivo acao-principal" onClick={()=>salvarScore(c)} disabled={saving===id}>{saving===id?'Salvando…':'Avaliar currículo'}</button>}/>
@@ -966,7 +967,7 @@ Essa ação não pode ser desfeita.`
         </Card>)}
 
         {tab==="cands"&&(<>
-          <style>{`.acoes-candidato{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.acoes-candidato .acao-arquivo{box-sizing:border-box;min-width:0;min-height:44px;width:100%;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 10px;border:1px solid #D0E8F7;border-radius:8px;background:#fff;color:#005DB5;text-decoration:none;font-family:inherit;font-size:12px;font-weight:800;text-align:center;cursor:pointer}.acoes-candidato .acao-principal{background:#005DB5;border-color:#005DB5;color:#fff}.acoes-candidato .indisponivel{color:#94A3B8;cursor:default;background:#F8FAFC}.acoes-candidato button:disabled{opacity:.55;cursor:wait}.acoes-candidato .nota-observacao{grid-column:span 2;font-size:11px;color:#475569;line-height:1.5;align-self:center}.acoes-candidato .acao-arquivo:focus-visible{outline:3px solid #00aaec;outline-offset:2px}@media(max-width:600px){.acoes-candidato{grid-template-columns:minmax(0,1fr)}.acoes-candidato .nota-observacao{grid-column:auto}}.candidato-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px}@media(max-width:900px){.candidato-layout{grid-template-columns:minmax(0,1fr)}}`}</style>
+          <style>{`.acoes-candidato{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.acoes-candidato .acao-arquivo{box-sizing:border-box;min-width:0;min-height:38px;width:100%;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 8px;border:1px solid #D0E8F7;border-radius:8px;background:#fff;color:#005DB5;text-decoration:none;font-family:inherit;font-size:12px;font-weight:800;text-align:center;cursor:pointer}.acoes-candidato .acao-principal{background:#005DB5;border-color:#005DB5;color:#fff}.acoes-candidato .indisponivel{color:#94A3B8;cursor:default;background:#F8FAFC}.acoes-candidato button:disabled{opacity:.55;cursor:wait}.acoes-candidato .nota-observacao{grid-column:span 2;font-size:11px;color:#475569;line-height:1.5;align-self:center}.acoes-candidato .acao-arquivo:focus-visible{outline:3px solid #00aaec;outline-offset:2px}@media(max-width:600px){.acoes-candidato{grid-template-columns:minmax(0,1fr)}.acoes-candidato .nota-observacao{grid-column:auto}}.candidato-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}.resultado-candidato{align-self:start;position:sticky;top:calc(var(--altura-contexto, 180px) + 12px)}.resumo-notas-contexto{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:8px;padding-top:7px;border-top:1px solid #e2e8f0;font-size:12px;color:#475569}@media(max-width:900px){.candidato-layout{grid-template-columns:minmax(0,1fr)}.resultado-candidato{position:static}}@media(max-height:650px){.resultado-candidato{position:static}}`}</style>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
             <h2 style={{fontWeight:800,color:B1,fontSize:"1.3rem"}}>Candidatos</h2>
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
@@ -977,50 +978,55 @@ Essa ação não pode ser desfeita.`
           {loading&&<p role="status">Carregando candidatos...</p>}
           {!loading&&!erro&&!filtrados.length&&<Card><p role="status" style={{color:G600}}>{search.trim()?"Nenhum candidato encontrado para esta busca. Limpe a busca ou clique em Atualizar.":"Nenhum candidato nesta vaga. Clique em Atualizar para buscar novas inscrições."}</p></Card>}
           {!loading&&filtrados.map(c=>(
-            <Card key={cid(c)} style={{marginBottom:20}}>
-              <div style={{display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",marginBottom:20}}>
+            <ContextoCandidato key={cid(c)} cabecalho={<>
+              <div style={{display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
                 <div style={{minWidth:0}}>
-                  <h3 style={{color:B1,fontWeight:900,fontSize:20,marginBottom:5}}>{nome(c)}</h3>
+                  <h3 style={{color:B1,fontWeight:900,fontSize:18,margin:"0 0 4px",overflowWrap:"anywhere"}}>{nome(c)}</h3>
                   <div style={{fontSize:12,color:G600,overflowWrap:"anywhere"}}>{email(c)} · {cidade(c)} {estado(c)} · Código: {c.codigo||'-'}</div>
-                  <div style={{fontSize:12,color:G600,marginTop:7}}>Cadastrado em: <strong>{dataCadastro(c)}</strong> <span style={{fontSize:11}}>(horário de Brasília)</span></div>
+                  <div style={{fontSize:12,color:G600,marginTop:4}}>Cadastrado em: <strong>{dataCadastro(c)}</strong> <span style={{fontSize:11}}>(horário de Brasília)</span></div>
                 </div>
                 <span style={{padding:"6px 10px",border:"1px solid "+B100,borderRadius:8,background:BP,color:B1,fontSize:12,fontWeight:700}}>{status(c).replace(/_/g," ")}</span>
               </div>
-              <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:16,alignItems:'center'}}>
+              <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:0,alignItems:'center'}}>
                 <label style={{fontSize:13,color:B1}}>Decisão de seleção: <select aria-label="Decisão de seleção" value={c.decisao_selecao||'em_analise'} onChange={e=>salvarDecisao(c,e.target.value)} style={{padding:8,borderRadius:8,border:'1px solid '+G200}}><option value="em_analise">Em análise</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option></select></label>
                 <small style={{color:G600}}>Andamento: {status(c).replace(/_/g,' ')}. A decisão não altera as notas.</small>
               </div>
+              <div className="resumo-notas-contexto" aria-label="Notas do candidato">
+                <strong style={{color:scColor(scoreTotal(c))}}>Geral {scoreTotal(c)} / 100</strong>
+                <span>Comportamental {scoreComp(c)}</span><span>Currículo {scoreCV(c)===''?'—':scoreCV(c)}</span><span>Áudio {scoreAudio(c)===''?'—':scoreAudio(c)}</span>
+              </div>
+              </>}>
               <div className="candidato-layout">
-                <div style={{display:"flex",flexDirection:"column",gap:14,minWidth:0}}>
-                  <section style={{border:"1px solid "+G200,borderRadius:12,padding:16}}>
+                <div style={{display:"flex",flexDirection:"column",gap:10,minWidth:0}}>
+                  <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                      <h4 style={{margin:0,color:B1,fontSize:16}}>Perfil comportamental</h4>
+                      <h4 style={{margin:0,color:B1,fontSize:15}}>Perfil comportamental</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreComp(c)} / 100</span>
                     </div>
                     <PerfilBarras c={c}/>
                   </section>
-                  <section style={{border:"1px solid "+G200,borderRadius:12,padding:16}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:12}}>
-                      <h4 style={{margin:0,color:B1,fontSize:16}}>Currículo</h4>
+                  <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+                      <h4 style={{margin:0,color:B1,fontSize:15}}>Currículo</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreCV(c)===""?"—":scoreCV(c)} / 100</span>
                     </div>
                     <AvaliacaoCurriculo c={c}/>
                   </section>
-                  <section style={{border:"1px solid "+G200,borderRadius:12,padding:16}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:12}}>
-                      <h4 style={{margin:0,color:B1,fontSize:16}}>Áudio</h4>
+                  <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+                      <h4 style={{margin:0,color:B1,fontSize:15}}>Áudio</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreAudio(c)===""?"—":scoreAudio(c)} / 100</span>
                     </div>
                     <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
                   <ObservacaoRecrutador candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
-                <aside style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:20,display:"flex",flexDirection:"column",minWidth:0}}>
-                  <h4 style={{margin:"0 0 14px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>
+                <aside className="resultado-candidato" style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:16,display:"flex",flexDirection:"column",minWidth:0}}>
+                  <h4 style={{margin:"0 0 10px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>
                   <div style={{padding:"10px 12px",background:"#fff",borderRadius:8,color:B1,fontSize:14,fontWeight:800}}>{posicaoNaVaga(c).posicao}º lugar de {posicaoNaVaga(c).total} candidatos</div>
-                  <div style={{fontSize:64,lineHeight:1.2,fontWeight:900,color:scColor(scoreTotal(c)),margin:"18px 0"}}>{scoreTotal(c)}<span style={{fontSize:20,color:G600,fontWeight:500}}> / 100</span></div>
+                  <div style={{fontSize:52,lineHeight:1.2,fontWeight:900,color:scColor(scoreTotal(c)),margin:"12px 0"}}>{scoreTotal(c)}<span style={{fontSize:20,color:G600,fontWeight:500}}> / 100</span></div>
                   {[["Comportamental",scoreComp(c)],["Currículo",scoreCV(c)],["Áudio",scoreAudio(c)]].map(([label,valor])=>(
-                    <div key={label} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"12px 0",borderTop:"1px solid "+B100,color:B1,fontSize:14}}><span>{label}</span><strong>{valor===""?"—":valor}</strong></div>
+                    <div key={label} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"8px 0",borderTop:"1px solid "+B100,color:B1,fontSize:14}}><span>{label}</span><strong>{valor===""?"—":valor}</strong></div>
                   ))}
                   <p style={{fontSize:11,color:G600,lineHeight:1.6}}>Notas atuais da avaliação. Posição na vaga, independentemente da busca.</p>
                   <div style={{marginTop:"auto",paddingTop:24}}>
@@ -1028,7 +1034,7 @@ Essa ação não pode ser desfeita.`
                   </div>
                 </aside>
               </div>
-            </Card>
+            </ContextoCandidato>
           ))}
         </>)}
       </div>
