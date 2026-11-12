@@ -374,15 +374,53 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
         <p style={{color:G600,fontSize:12,marginTop:10}}>Tamanho máximo: 4 MB por arquivo.</p>
         {err&&<p role="alert" style={{color:RED,fontSize:12,marginTop:8}}>{err}</p>}
 
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:20}}>
-          <Btn sec onClick={onBack}>← Voltar</Btn>
+        <div className="acoes-upload" style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginTop:20,paddingTop:20,borderTop:"1px solid "+G200}}>
+          <Btn sec disabled={loading} onClick={onBack}>← Voltar</Btn>
           <Btn onClick={()=>{const mensagem=uploadError(file);if(mensagem){setErr(mensagem);return;}onNext(file);}} disabled={loading}>
-            {loading?"Enviando...":(step===5?"Finalizar Candidatura ✓":"Continuar →")}
+            {loading?"Enviando...":(step===5?"Finalizar candidatura ✓":"Enviar áudio e avançar →")}
           </Btn>
         </div>
       </Card>
+      <style jsx>{`
+        @media (max-width: 480px) {
+          .acoes-upload { flex-direction: column-reverse; }
+          .acoes-upload :global(button) { width: 100%; }
+        }
+      `}</style>
     </div>
   );
+}
+
+function PausaCandidatura({onPausar,loading}) {
+  return <div className="pausa-externa">
+    <aside className="pausa-card" aria-labelledby="titulo-pausa">
+      <span className="pausa-icone" aria-hidden="true"/>
+      <div className="pausa-texto">
+        <h2 id="titulo-pausa">Prefere terminar depois?</h2>
+        <p>Volte pelo link desta vaga, neste mesmo navegador.</p>
+        <p>Prazo: até 24 horas após o cadastro. Apenas etapas enviadas ficam salvas.</p>
+        <p className="pausa-aviso">Respostas incompletas, gravações e arquivos ainda não enviados não ficam salvos.</p>
+      </div>
+      <button type="button" disabled={loading} onClick={onPausar}>Pausar candidatura</button>
+    </aside>
+    <style jsx>{`
+      .pausa-externa { max-width: 700px; margin: 0 auto; padding: 0 16px 28px; box-sizing: border-box; }
+      .pausa-card { display: flex; align-items: center; gap: 16px; padding: 20px; border: 1px solid #b8e2fa; border-radius: 14px; background: #e4f4ff; color: #044d9f; }
+      .pausa-icone { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border: 2px solid #00aaec; border-radius: 50%; color: #0088c2; background: linear-gradient(to right, #0088c2 0 4px, transparent 4px 8px, #0088c2 8px 12px) center / 12px 14px no-repeat; }
+      .pausa-texto { flex: 1; min-width: 0; }
+      h2 { font-size: 17px; line-height: 1.4; margin: 0 0 6px; font-weight: 800; }
+      p { font-size: 12px; line-height: 1.6; margin: 3px 0; color: #334155; }
+      .pausa-aviso { font-size: 11px; color: #475569; margin-top: 7px; }
+      button { flex-shrink: 0; border: 1px solid #044d9f; background: white; color: #044d9f; padding: 12px 14px; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: wait; }
+      button:focus-visible { outline: 3px solid #00aaec; outline-offset: 3px; }
+      @media (max-width: 600px) {
+        .pausa-card { flex-wrap: wrap; align-items: flex-start; gap: 12px; padding: 18px; }
+        .pausa-texto { flex-basis: calc(100% - 50px); }
+        button { width: 100%; }
+      }
+    `}</style>
+  </div>;
 }
 
 // Perfis exibidos APENAS AQUI na confirmação final
@@ -1157,7 +1195,7 @@ export default function App(){
       {step===3&&<P3 onNext={handleComportamental} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
       {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 4 MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
       {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.docx" hint="PDF ou DOCX — Máx 4 MB" onNext={handleUploadCurriculo} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
-      {step>=3&&step<=5&&<div style={{maxWidth:700,margin:"0 auto",padding:"0 16px 24px",textAlign:"center"}}><button disabled={loading} onClick={pausar} style={{padding:"12px 18px",border:"1px solid #ccdbea",borderRadius:9,color:B1,background:"white",cursor:"pointer"}}>Continuar depois neste navegador</button><p style={{fontSize:12,color:G600}}>A sessão dura até 24 horas após o cadastro. Somente etapas enviadas ficam salvas.</p></div>}
+      {step>=3&&step<=5&&<PausaCandidatura onPausar={pausar} loading={loading}/>}
       {step===7&&resumo&&<ResumoRetomada resumo={resumo} onRetomar={handleRetomar} onVoltar={()=>{setStep(0);setPausada(false);}} loading={loading} pausada={pausada}/>}
       {step===6&&<P6 data={data}/>}
     </div>
