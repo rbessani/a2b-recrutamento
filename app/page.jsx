@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import ObservacaoRecrutador from "@/components/ObservacaoRecrutador";
 import ResumoRetomada from "@/components/ResumoRetomada";
 import EntradaCandidatura from "@/components/EntradaCandidatura";
 import GestaoVagas from "@/components/GestaoVagas";
@@ -693,7 +694,6 @@ function AdminPanel({onBack}){
           candidato_id:id,
           score_curriculo:cv===""?null:Number(cv),
           score_audio:audio===undefined?Number(scoreAudio(c)||0):(audio===""?null:Number(audio)),
-          observacao:document.getElementById(`observacao-${id}`)?.value||'',
           score_comportamental:scoreComp(c)
         })
       });
@@ -764,20 +764,15 @@ Essa ação não pode ser desfeita.`
   const media=filtrados.length?Math.round(filtrados.reduce((s,c)=>s+scoreTotal(c),0)/filtrados.length):0;
   const tabs=[{id:"vagas",l:"Vagas"},{id:"dash",l:"Dashboard"},{id:"rank",l:"Ranking"},{id:"cands",l:"Candidatos"}];
 
-  function ArquivoBotoes({c,tipo,label}){
-    const lista=arquivos(c,tipo);
-    if(!lista.length)return <span style={{fontSize:11,color:G400}}>Não enviado</span>;
-    const a=lista[0];
-    const url=a.public_url||a.url||a.url_publica;
-    if(!url)return <span style={{fontSize:11,color:G400}}>Arquivo sem link</span>;
-    const controles=(
-      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-        {tipo==='audio'&&<audio controls src={url} style={{height:32,maxWidth:220}}/>}
-        <a href={url} target="_blank" rel="noreferrer" style={{fontSize:11,fontWeight:800,color:B2,textDecoration:"none",border:`1px solid ${B100}`,padding:"5px 8px",borderRadius:7,background:BP}}>{tipo==='audio'?'Abrir áudio':'Visualizar CV'}</a>
-        <a href={url} download={a.nome_arquivo||label} style={{fontSize:11,fontWeight:800,color:G700,textDecoration:"none",border:`1px solid ${G200}`,padding:"5px 8px",borderRadius:7,background:"#fff"}}>Baixar</a>
-      </div>
-    );
-    return tipo==='audio'?<ChecklistAudio c={c} controles={controles}/>:controles;
+  function ArquivoBotoes({c,tipo,label,acao}){
+    const a=arquivos(c,tipo)[0];
+    const url=a&&(a.public_url||a.url||a.url_publica);
+    const controles=<>
+      {url?<a className="acao-arquivo" href={url} target="_blank" rel="noreferrer">{tipo==='audio'?'Abrir áudio':'Visualizar currículo'}</a>:<span className="acao-arquivo indisponivel">{a?'Arquivo sem link':'Não enviado'}</span>}
+      {url?<a className="acao-arquivo" href={url} download={a.nome_arquivo||label}>Baixar</a>:<span className="acao-arquivo indisponivel">Baixar</span>}
+    </>;
+    if(tipo==='audio')return <ChecklistAudio c={c} controles={controles} player={url?<audio controls src={url} style={{width:'100%',height:40,display:'block',marginBottom:14}}/>:<p style={{fontSize:12,color:G400}}>{a?'Arquivo sem link':'Áudio não enviado'}</p>}/>;
+    return <div className="acoes-candidato">{controles}{acao}</div>;
   }
 
   // ── Checklist de avaliação de áudio ─────────────────────────────
@@ -794,7 +789,7 @@ Essa ação não pode ser desfeita.`
     {key:"script",    label:"Script",       peso:0.05, opcoes:[{l:"Seguiu bem",v:100},{l:"Adaptou bem",v:85},{l:"Fugiu do objetivo",v:30}]},
   ];
 
-  function ChecklistAudio({c,controles}){
+  function ChecklistAudio({c,controles,player}){
     const id=cid(c);
     const [aberto,setAberto]=useState(false);
     const [vals,setVals]=useState({});
@@ -816,8 +811,7 @@ Essa ação não pode ser desfeita.`
             score_curriculo:cv===""?null:Number(cv),
             score_audio:score,
             criterios_audio:Object.fromEntries(CRITERIOS_AUDIO.map(cr=>[cr.key,cr.opcoes.find(op=>op.l===vals[cr.key]).v])),
-            observacao:document.getElementById(`observacao-${id}`)?.value||'',
-          score_comportamental:scoreComp(c)
+            score_comportamental:scoreComp(c)
           })
         });
         const json=await res.json();
@@ -831,9 +825,10 @@ Essa ação não pode ser desfeita.`
 
     return(
       <div>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <div>{player}</div>
+        <div className="acoes-candidato">
           {controles}
-        <button onClick={()=>setAberto(p=>!p)} style={{background:aberto?B1:B2,color:"#fff",border:"1.5px solid "+(aberto?B1:B2),borderRadius:8,padding:"7px 12px",fontWeight:800,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+        <button className="acao-arquivo acao-principal" onClick={()=>setAberto(p=>!p)}>
           {"🎧 "+(aberto?"Fechar avaliação":"Avaliar áudio")}
           {!aberto&&scoreAudio(c)>0&&<span style={{background:B2,color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:10,marginLeft:4}}>{scoreAudio(c)}</span>}
         </button>
@@ -885,18 +880,12 @@ Essa ação não pode ser desfeita.`
 
   function AvaliacaoCurriculo({c}){
     const id=cid(c);
-    return(
-      <div style={{display:"flex",gap:8,alignItems:"end",flexWrap:"wrap"}}>
-        <ArquivoBotoes c={c} tipo="curriculo" label="curriculo"/>
-          <div>
-            <label style={{fontSize:10,fontWeight:800,color:G400,textTransform:"uppercase"}}>Nota do currículo</label>
-            <input id={"cv-"+id} type="number" min="0" max="100" step="1" defaultValue={scoreCV(c)} placeholder="0-100" style={{width:100,border:"1px solid "+G200,borderRadius:7,padding:"7px 8px",fontWeight:800}}/>
-          </div>
-          <button onClick={()=>salvarScore(c)} disabled={saving===id} style={{background:B2,color:"#fff",border:"none",borderRadius:8,padding:"9px 10px",fontWeight:800,cursor:"pointer",alignSelf:"end"}}>
-            {saving===id?"Salvando...":"Avaliar currículo"}
-          </button>
-      </div>
-    );
+    return <div>
+      <label htmlFor={"cv-"+id} style={{fontSize:12,fontWeight:700,color:G600,display:'flex',alignItems:'center',gap:10,marginBottom:14}}>Nota do currículo
+        <input id={"cv-"+id} type="number" min="0" max="100" step="1" defaultValue={scoreCV(c)} placeholder="0-100" style={{width:100,border:"1px solid "+G200,borderRadius:7,padding:"7px 8px",fontWeight:800}}/>
+      </label>
+      <ArquivoBotoes c={c} tipo="curriculo" label="curriculo" acao={<button className="acao-arquivo acao-principal" onClick={()=>salvarScore(c)} disabled={saving===id}>{saving===id?'Salvando…':'Avaliar currículo'}</button>}/>
+    </div>;
   }
 
   function ScoreInputs({c}){
@@ -977,7 +966,7 @@ Essa ação não pode ser desfeita.`
         </Card>)}
 
         {tab==="cands"&&(<>
-          <style>{`.candidato-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px}@media(max-width:900px){.candidato-layout{grid-template-columns:minmax(0,1fr)}}`}</style>
+          <style>{`.acoes-candidato{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.acoes-candidato .acao-arquivo{box-sizing:border-box;min-width:0;min-height:44px;width:100%;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 10px;border:1px solid #D0E8F7;border-radius:8px;background:#fff;color:#005DB5;text-decoration:none;font-family:inherit;font-size:12px;font-weight:800;text-align:center;cursor:pointer}.acoes-candidato .acao-principal{background:#005DB5;border-color:#005DB5;color:#fff}.acoes-candidato .indisponivel{color:#94A3B8;cursor:default;background:#F8FAFC}.acoes-candidato button:disabled{opacity:.55;cursor:wait}.acoes-candidato .nota-observacao{grid-column:span 2;font-size:11px;color:#475569;line-height:1.5;align-self:center}.acoes-candidato .acao-arquivo:focus-visible{outline:3px solid #00aaec;outline-offset:2px}@media(max-width:600px){.acoes-candidato{grid-template-columns:minmax(0,1fr)}.acoes-candidato .nota-observacao{grid-column:auto}}.candidato-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px}@media(max-width:900px){.candidato-layout{grid-template-columns:minmax(0,1fr)}}`}</style>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
             <h2 style={{fontWeight:800,color:B1,fontSize:"1.3rem"}}>Candidatos</h2>
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
@@ -999,7 +988,6 @@ Essa ação não pode ser desfeita.`
               </div>
               <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:16,alignItems:'center'}}>
                 <label style={{fontSize:13,color:B1}}>Decisão de seleção: <select aria-label="Decisão de seleção" value={c.decisao_selecao||'em_analise'} onChange={e=>salvarDecisao(c,e.target.value)} style={{padding:8,borderRadius:8,border:'1px solid '+G200}}><option value="em_analise">Em análise</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option></select></label>
-                <label style={{fontSize:13,color:B1}}>Observação da avaliação: <textarea id={`observacao-${cid(c)}`} maxLength={3000} defaultValue={c.observacao_avaliacao||''} placeholder="Registre o motivo da nota; será salvo ao avaliar currículo ou áudio." style={{display:'block',minWidth:260,padding:8,borderRadius:8,border:'1px solid '+G200}}/></label>
                 <small style={{color:G600}}>Andamento: {status(c).replace(/_/g,' ')}. A decisão não altera as notas.</small>
               </div>
               <div className="candidato-layout">
@@ -1025,6 +1013,7 @@ Essa ação não pode ser desfeita.`
                     </div>
                     <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
+                  <ObservacaoRecrutador candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
                 <aside style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:20,display:"flex",flexDirection:"column",minWidth:0}}>
                   <h4 style={{margin:"0 0 14px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>
