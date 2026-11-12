@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import ResumoRetomada from "@/components/ResumoRetomada";
 import EntradaCandidatura from "@/components/EntradaCandidatura";
 import GestaoVagas from "@/components/GestaoVagas";
 import { DEFAULT_SCRIPT } from "@/lib/vagas.mjs";
@@ -89,12 +90,13 @@ function Btn({children,onClick,sec,sm}){
   return <button onClick={onClick} style={{cursor:"pointer",border:"none",background:`linear-gradient(135deg,${B2},${B3})`,color:"#fff",fontSize:sm?12:13.5,fontWeight:700,padding:sm?"7px 13px":"11px 22px",borderRadius:9,boxShadow:"0 4px 14px rgba(0,93,181,.3)"}}>{children}</button>;
 }
 
-function P2({onNext,onBack}){
+function P2({onNext,onBack,loading=false}){
   const [f,setF]=useState({nome:"",email:"",tel:"",cidade:"",uf:""});
   const [e,setE]=useState({});
   const UFS=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
   const up=(k,v)=>setF(p=>({...p,[k]:v}));
   function go(){
+    if(loading)return;
     const err={};
     if(!f.nome||f.nome.trim().length<3)err.nome="Obrigatório";
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email))err.email="E-mail inválido";
@@ -131,7 +133,7 @@ function P2({onNext,onBack}){
         </div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:18}}>
           <Btn sec onClick={onBack}>← Voltar</Btn>
-          <Btn onClick={go}>Continuar →</Btn>
+          <Btn disabled={loading} onClick={go}>{loading?"Enviando…":"Continuar →"}</Btn>
         </div>
       </Card>
     </div>
@@ -140,12 +142,13 @@ function P2({onNext,onBack}){
 
 // ALTERAÇÃO: grid de perfis (Águia/Lobo/Golfinho/Tubarão) REMOVIDO da etapa 3
 // Aparece agora apenas na tela de confirmação final (P6)
-function P3({onNext,onBack}){
+function P3({onNext,onBack,loading=false}){
   const [qi,setQi]=useState(0);
   const [ans,setAns]=useState({});
   const [err,setErr]=useState(false);
   const q=QS[qi];
   function nav(d){
+    if(loading)return;
     if(d===1&&!ans[q.id]){setErr(true);return;}
     setErr(false);
     if(d===-1&&qi===0){onBack();return;}
@@ -180,7 +183,7 @@ function P3({onNext,onBack}){
         {err&&<p style={{color:RED,fontSize:11,marginTop:4}}>Selecione uma alternativa.</p>}
         <div style={{display:"flex",justifyContent:"space-between",marginTop:18}}>
           <Btn sec onClick={()=>nav(-1)}>{qi===0?"← Voltar":"← Anterior"}</Btn>
-          <Btn onClick={()=>nav(1)}>{qi===QS.length-1?"Finalizar Etapa →":"Próxima →"}</Btn>
+          <Btn disabled={loading} onClick={()=>nav(1)}>{qi===QS.length-1?"Finalizar Etapa →":"Próxima →"}</Btn>
         </div>
       </Card>
     </div>
@@ -194,6 +197,9 @@ function GravadorAudio({onAudioPronto}){
   const [erroMic,setErroMic]=useState(null);
   const mediaRecRef=useRef(null);
   const chunksRef=useRef([]);
+  const gravadorMontado=useRef(true);
+  useEffect(()=>{gravadorMontado.current=true;return()=>{gravadorMontado.current=false;const rec=mediaRecRef.current;if(rec){rec.onstop=null;rec.ondataavailable=null;if(rec.state!=="inactive")rec.stop();rec.stream?.getTracks().forEach(t=>t.stop());}};},[]);
+  useEffect(()=>()=>{if(audioUrl)URL.revokeObjectURL(audioUrl);},[audioUrl]);
 
   // Verifica suporte
   const temSupporte=typeof window!=="undefined"&&!!navigator.mediaDevices&&!!window.MediaRecorder;
@@ -203,6 +209,7 @@ function GravadorAudio({onAudioPronto}){
     if(!temSupporte){setErroMic("Seu navegador não suporta gravação direta. Use a opção de envio de arquivo.");return;}
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      if(!gravadorMontado.current){stream.getTracks().forEach(t=>t.stop());return;}
       chunksRef.current=[];
       // Tenta formatos compatíveis — prioriza webm (desktop) e mp4 (iOS)
       const mimeType=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -380,8 +387,8 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
 
 // Perfis exibidos APENAS AQUI na confirmação final
 function P6({data}){
-  const sc={A:0,B:0,C:0,D:0};
-  if(data.ans)Object.values(data.ans).forEach(l=>{if(sc[l]!==undefined)sc[l]++;});
+  const sc=data.contagem?{...data.contagem}:{A:0,B:0,C:0,D:0};
+  if(!data.contagem&&data.ans)Object.values(data.ans).forEach(l=>{if(sc[l]!==undefined)sc[l]++;});
   const top=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
   const pf=top?PF[top[0]]:PF.D;
   const code=data.codigo||("BSN-"+Date.now().toString().slice(-6));
@@ -394,7 +401,7 @@ function P6({data}){
         <div style={{display:"inline-block",background:B1,color:B4,fontSize:12,letterSpacing:"0.14em",padding:"6px 16px",borderRadius:16,marginTop:16,fontWeight:700}}>Código: {code}</div>
 
         {/* Perfis exibidos APENAS AQUI */}
-        <div style={{marginTop:22,padding:"16px",background:BP,borderRadius:12,border:`1px solid ${B100}`}}>
+        {(data.contagem||data.ans)&&<div style={{marginTop:22,padding:"16px",background:BP,borderRadius:12,border:`1px solid ${B100}`}}>
           <p style={{fontWeight:800,color:B1,marginBottom:12,fontSize:13}}>Seu perfil comportamental:</p>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
             {Object.entries(sc).map(([k,v])=>{
@@ -409,7 +416,7 @@ function P6({data}){
               );
             })}
           </div>
-        </div>
+        </div>}
 
         <div style={{marginTop:16,padding:18,background:G50,borderRadius:10,textAlign:"left",maxWidth:360,margin:"16px auto 0",border:`1px solid ${G200}`}}>
           <p style={{fontWeight:800,color:B1,marginBottom:9,fontSize:13}}>Resumo:</p>
@@ -417,7 +424,7 @@ function P6({data}){
             <strong style={{color:B1}}>{data.cand?.nome||"Candidato"}</strong><br/>
             📧 {data.cand?.email||"—"}<br/>
             📍 {data.cand?.cidade||"—"} – {data.cand?.uf||""}<br/>
-            {pf.e} Perfil dominante: <strong>{pf.n}</strong>
+            {(data.contagem||data.ans)&&<>{pf.e} Perfil dominante: <strong>{pf.n}</strong></>}
           </div>
         </div>
       </Card>
@@ -1033,8 +1040,24 @@ export default function App(){
   const [codigoErroVaga,setCodigoErroVaga]=useState(null);
   const [consentimento,setConsentimento]=useState(false);
   const [carregandoVaga,setCarregandoVaga]=useState(true);
-  useEffect(()=>{let ativo=true;const params=new URLSearchParams(window.location.search);const query=params.has('vaga')?'?vaga='+encodeURIComponent(params.get('vaga')):'';
-    fetch('/api/vagas/publica'+query,{cache:'no-store'}).then(async res=>{const json=await res.json();if(!res.ok){const falha=new Error(json.error||'Vaga indisponível.');falha.status=res.status;throw falha;}if(ativo)setVagaPublica(json.vaga);}).catch(e=>{if(ativo){setErroVaga(e.message);setCodigoErroVaga(e.status||500);}}).finally(()=>{if(ativo)setCarregandoVaga(false);});return()=>{ativo=false;};},[]);
+  const [inscricoes,setInscricoes]=useState([]);
+  const [resumo,setResumo]=useState(null);
+  const [pausada,setPausada]=useState(false);
+  const travaEnvio=useRef(false);
+  useEffect(()=>{let ativo=true;
+    (async()=>{try{
+      const params=new URLSearchParams(window.location.search);
+      const query=params.has('vaga')?'?vaga='+encodeURIComponent(params.get('vaga')):'';
+      const retomada=await fetch('/api/candidatos/retomar'+query,{cache:'no-store'});
+      let anteriores=null;
+      if(retomada.ok)anteriores=await retomada.json();
+      else if(retomada.status!==404){const falha=new Error('Não foi possível conferir inscrições anteriores. Tente novamente sem refazer o cadastro.');falha.status=retomada.status;throw falha;}
+      if(anteriores?.inscricoes?.length){if(ativo){setInscricoes(anteriores.inscricoes);setVagaPublica(anteriores.vaga);}return;}
+      const res=await fetch('/api/vagas/publica'+query,{cache:'no-store'});const json=await res.json();
+      if(!res.ok){const falha=new Error(json.error||'Vaga indisponível.');falha.status=res.status;throw falha;}
+      if(ativo)setVagaPublica(json.vaga);
+    }catch(e){if(ativo){setErroVaga(e.message);setCodigoErroVaga(e.status||500);}}finally{if(ativo)setCarregandoVaga(false);}})();
+    return()=>{ativo=false;};},[]);
 
   const [view,setView]=useState("cand");
   const [step,setStep]=useState(0);
@@ -1043,6 +1066,22 @@ export default function App(){
   const [erro,setErro]=useState(null);
   const save=(d)=>setData(p=>({...p,...d}));
 
+  async function handleRetomar(id,exibirResumo=false){
+    if(travaEnvio.current)return;
+    travaEnvio.current=true;setLoading(true);setErro(null);
+    try{
+      const res=await fetch('/api/candidatos/retomar?vaga='+encodeURIComponent(vagaPublica.id)+'&candidato='+encodeURIComponent(id),{cache:'no-store'});
+      const json=await res.json();if(!res.ok)throw new Error(json.error||'Não foi possível recuperar a inscrição.');
+      setResumo(json);setData(json.data);setConsentimento(true);
+      setInscricoes(p=>p.some(c=>c.id===id)?p:[...p,json.inscricao]);
+      setStep(exibirResumo||!json.pode_continuar?7:json.progresso.proxima_etapa);
+      setPausada(exibirResumo);
+    }catch(e){setErro(e.message);}finally{setLoading(false);travaEnvio.current=false;}
+  }
+  async function pausar(){
+    if(loading||!window.confirm('Somente as etapas já enviadas ficam salvas. Respostas não concluídas, gravações e arquivos ainda não enviados serão descartados desta tela. Deseja continuar depois?'))return;
+    await handleRetomar(data.candidato_id,true);
+  }
   async function sairAdmin(){
     try{const res=await fetch('/api/admin/logout',{method:'POST'});if(!res.ok)throw new Error();setView('cand');}
     catch{window.alert('Não foi possível encerrar a sessão. Tente novamente.');}
@@ -1056,6 +1095,7 @@ export default function App(){
   );
 
   async function handleDados(formData){
+    if(travaEnvio.current)return;travaEnvio.current=true;
     setLoading(true);setErro(null);
     try{
       const {tel,uf,...dadosPessoais}=formData;
@@ -1064,40 +1104,44 @@ export default function App(){
         vaga_id:vagaPublica?.id,lgpd_aceito:true,
       });
       save({cand:formData,candidato_id:res.candidato.id,codigo:res.candidato.codigo,roteiro_audio:res.candidato.roteiro_audio_inscricao||DEFAULT_SCRIPT});
+      setInscricoes(p=>p.some(c=>c.id===res.candidato.id)?p:[...p,{id:res.candidato.id,codigo:res.candidato.codigo,nome:formData.nome}]);
       setStep(3);
     }catch(e){setErro(e.message);}
-    finally{setLoading(false);}
+    finally{setLoading(false);travaEnvio.current=false;}
   }
 
   async function handleComportamental(ans){
+    if(travaEnvio.current)return;travaEnvio.current=true;
     setLoading(true);setErro(null);
     try{
-      await apiPost('/api/comportamental',{
+      const resposta=await apiPost('/api/comportamental',{
         candidato_id:data.candidato_id,
         respostas:ans,
       });
-      save({ans});setStep(4);
+      save({ans,contagem:resposta.resultado?.contagem});setStep(4);
     }catch(e){
       setErro(e.message||"Não foi possível salvar as respostas. Tente novamente.");
-    }finally{setLoading(false);}
+    }finally{setLoading(false);travaEnvio.current=false;}
   }
 
   async function handleUploadAudio(arquivo){
+    if(travaEnvio.current)return;travaEnvio.current=true;
     setLoading(true);setErro(null);
     try{
       await apiUpload('/api/upload/audio',data.candidato_id,arquivo);
       save({audio:arquivo});setStep(5);
     }catch(e){setErro(e.message);}
-    finally{setLoading(false);}
+    finally{setLoading(false);travaEnvio.current=false;}
   }
 
   async function handleUploadCurriculo(arquivo){
+    if(travaEnvio.current)return;travaEnvio.current=true;
     setLoading(true);setErro(null);
     try{
       await apiUpload('/api/upload/curriculo',data.candidato_id,arquivo);
       save({cv:arquivo});setStep(6);
     }catch(e){setErro(e.message);}
-    finally{setLoading(false);}
+    finally{setLoading(false);travaEnvio.current=false;}
   }
 
   if(carregandoVaga||erroVaga)return <EntradaCandidatura carregando={carregandoVaga} erro={erroVaga} codigoErro={codigoErroVaga} onRetry={()=>window.location.reload()} onAdmin={()=>setView('login')}/>;
@@ -1108,11 +1152,13 @@ export default function App(){
       {step!==0&&<Prog step={step}/>}
       {erro&&<div style={{maxWidth:700,margin:"0 auto",padding:"8px 16px"}}><div style={{background:"rgba(220,38,38,.08)",color:"#DC2626",border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"10px 14px",fontSize:13}}>{erro}</div></div>}
       {loading&&<div style={{textAlign:"center",padding:"6px",fontSize:12,color:"#94A3B8"}}>Aguarde...</div>}
-      {step===0&&<EntradaCandidatura vaga={vagaPublica} consentimento={consentimento} onConsentimento={setConsentimento} onNext={()=>setStep(2)} onAdmin={()=>setView("login")}/>}
+      {step===0&&<EntradaCandidatura vaga={vagaPublica} retomada={inscricoes.length>0?<ResumoRetomada inscricoes={inscricoes} onRetomar={handleRetomar} loading={loading}/>:null} consentimento={consentimento} onConsentimento={setConsentimento} onNext={()=>setStep(2)} onAdmin={()=>setView("login")}/>}
       {step===2&&<P2 onNext={handleDados} onBack={()=>setStep(0)} loading={loading}/>}
-      {step===3&&<P3 onNext={handleComportamental} onBack={()=>setStep(2)}/>}
-      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 4 MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>setStep(3)} loading={loading}/>}
-      {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.docx" hint="PDF ou DOCX — Máx 4 MB" onNext={handleUploadCurriculo} onBack={()=>setStep(4)} loading={loading}/>}
+      {step===3&&<P3 onNext={handleComportamental} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
+      {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 4 MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
+      {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.docx" hint="PDF ou DOCX — Máx 4 MB" onNext={handleUploadCurriculo} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
+      {step>=3&&step<=5&&<div style={{maxWidth:700,margin:"0 auto",padding:"0 16px 24px",textAlign:"center"}}><button disabled={loading} onClick={pausar} style={{padding:"12px 18px",border:"1px solid #ccdbea",borderRadius:9,color:B1,background:"white",cursor:"pointer"}}>Continuar depois neste navegador</button><p style={{fontSize:12,color:G600}}>A sessão dura até 24 horas após o cadastro. Somente etapas enviadas ficam salvas.</p></div>}
+      {step===7&&resumo&&<ResumoRetomada resumo={resumo} onRetomar={handleRetomar} onVoltar={()=>{setStep(0);setPausada(false);}} loading={loading} pausada={pausada}/>}
       {step===6&&<P6 data={data}/>}
     </div>
   );

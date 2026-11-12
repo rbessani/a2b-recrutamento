@@ -5,7 +5,7 @@ const OPORTUNIDADES = 'https://bessani.com.br/trabalhe-conosco#oportunidades';
 function Icone({tipo}) {
   return <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{tipo==='audio'?<><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></>:tipo==='escudo'?<><path d="M12 2l9 4v6c0 5-9 10-9 10S3 17 3 12V6z"/><path d="M8 12l3 3 5-6"/></>:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></>}</svg>;
 }
-export default function EntradaCandidatura({vaga, carregando, erro, codigoErro, onRetry, onAdmin, consentimento, onConsentimento, onNext}) {
+export default function EntradaCandidatura({vaga, carregando, erro, codigoErro, onRetry, onAdmin, consentimento, onConsentimento, onNext, retomada}) {
   const [aviso,setAviso]=useState(false);
   const [iniciando,setIniciando]=useState(false);
   const trava=useRef(false);
@@ -21,6 +21,7 @@ export default function EntradaCandidatura({vaga, carregando, erro, codigoErro, 
       {carregando ? <section className="entrada-card entrada-estado" role="status"><div className="entrada-carregando"/><h1>Carregando oportunidade…</h1><p>Aguarde um instante.</p></section> : erro ? <section className="entrada-card entrada-estado" role="alert"><h1>{codigoErro===400?'Link de vaga inválido':codigoErro===404?'Vaga indisponível':'Não foi possível carregar a oportunidade'}</h1><p>{erro}</p><div className="entrada-estado-acoes">{codigoErro!==400&&codigoErro!==404&&<button className="entrada-botao" onClick={onRetry}>Tentar novamente</button>}<a href={OPORTUNIDADES}>Ver oportunidades</a></div></section> : vaga && <>
         <nav className="entrada-breadcrumb" aria-label="Caminho de navegação"><a href={OPORTUNIDADES}>Trabalhe conosco</a><span aria-hidden="true">/</span><span>{vaga.titulo}</span></nav>
         <div className="entrada-titulo"><h1>{vaga.titulo}</h1><span className={'entrada-selo'+(indisponivel?' entrada-selo-fechado':'')}>{vaga.status==='encerrada'?'Vaga encerrada':vaga.status==='pausada'?'Vaga pausada':indisponivel?'Vaga indisponível':'Vaga aberta'}</span></div>
+        {retomada}
         <div className="entrada-colunas">
           <section className="entrada-card entrada-sobre"><h2>Sobre a oportunidade</h2>{vaga.descricao?.trim()?<p className="entrada-descricao">{vaga.descricao}</p>:<p className="entrada-sem-descricao">Esta vaga ainda não tem uma descrição cadastrada.</p>}</section>
           <aside className="entrada-card entrada-preparo"><h2>Prepare-se para começar</h2><p>Tenha seu currículo em mãos e prepare-se para gravar um breve áudio seguindo a instrução da vaga.</p><div className="entrada-preparo-icones"><span><Icone tipo="curriculo"/>Currículo</span><span><Icone tipo="audio"/>Áudio</span></div><p className="entrada-dica">Você também responderá ao questionário de perfil comportamental.</p><p className="entrada-limite">PDF ou DOCX para o currículo · Até 4 MB por arquivo.</p></aside>
