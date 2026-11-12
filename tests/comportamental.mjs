@@ -1,6 +1,7 @@
+import {fileURLToPath} from 'node:url';
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-const root = new URL('../', import.meta.url).pathname.replace(/\/$/, '')
+const root = fileURLToPath(new URL('../',import.meta.url)).replace(/\/$/, '')
 process.env.NEXT_PUBLIC_EMPRESA_ID = 'test-company'
 process.env.NEXT_PUBLIC_QUESTIONARIO_ID = 'test-questionnaire'
 let fault = null
@@ -9,11 +10,12 @@ const fakeError = { message: 'Simulated database failure' }
 const db = { from(table) {
  const q = {
   select() { return q }, eq() { return q },
+  async maybeSingle() { return {data:null,error:null} },
   async single() { return { data: table === 'candidatos' ? { vaga_id: 'test-vaga' } : { peso_perfil_a: 1, peso_perfil_b: 2, peso_perfil_c: 1, peso_perfil_d: 2 }, error: null } },
   async upsert() { calls.push('resultado'); return { error: fault === 'resultado' ? fakeError : null } },
   update() { q.operation = 'status'; return q },
   then(resolve, reject) { calls.push('status'); return Promise.resolve({error: fault === 'status' ? fakeError : null}).then(resolve, reject) },
-  async insert() { calls.push('log'); return { error: fault === 'log' ? fakeError : null } }
+  async insert() { const acao=table==='resultado_comportamental'?'resultado':'log';calls.push(acao);return {error:fault===acao?fakeError:null} }
  }; return q
 }}
 globalThis.__behaviorDb = db

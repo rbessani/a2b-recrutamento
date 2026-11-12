@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/security.mjs && node tests/comportamental.mjs && node tests/vagas.mjs"
+    "test": "node tests/security.mjs && node tests/comportamental.mjs && node tests/vagas.mjs && node tests/uploads.mjs && node tests/upload-routes.mjs && node tests/cadastro-contato.mjs && node tests/supabase-atualizacao.mjs && node tests/retomada.mjs && node tests/questionario-imutavel.mjs && node tests/observacao-recrutador.mjs"
   },
   "dependencies": {
     "next": "14.2.0",

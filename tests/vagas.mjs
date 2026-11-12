@@ -1,8 +1,9 @@
+import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {pathToFileURL} from 'node:url'
 import {vacancyPayload,validId,DEFAULT_SCRIPT} from '../lib/vagas.mjs'
-const root=new URL('../',import.meta.url).pathname.replace(/\/$/,'')
+const root=fileURLToPath(new URL('../',import.meta.url)).replace(/\/$/,'')
 const E='10000000-0000-0000-0000-000000000001',V='20000000-0000-0000-0000-000000000001',W='20000000-0000-0000-0000-000000000002'
 process.env.NEXT_PUBLIC_EMPRESA_ID=E;process.env.NEXT_PUBLIC_VAGA_ID=V
 let count=0;const test=fn=>{fn();count++}

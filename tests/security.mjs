@@ -1,7 +1,8 @@
+import {fileURLToPath} from 'node:url';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-const root=new URL('../', import.meta.url).pathname.replace(/\/$/, '');
+const root=fileURLToPath(new URL('../',import.meta.url)).replace(/\/$/, '');
 process.env.SESSION_SECRET='testing-only-'.repeat(5);process.env.NEXT_PUBLIC_EMPRESA_ID='company-test';process.env.APP_ORIGIN='https://test.invalid';process.env.ADMIN_PASSWORD='test-admin-password-123456';
 const sessionUrl=pathToFileURL(root+'/lib/session.mjs').href;
 const sess=await import(sessionUrl);
@@ -41,6 +42,8 @@ assert.equal((await l.POST(req(null,'https://evil.invalid'))).status,403);count+
 let get=fs.readFileSync(root+'/app/api/candidatos/route.js','utf8').replace("import { NextResponse } from 'next/server'","const NextResponse = globalThis.__response").replace("import { supabaseAdmin } from '@/lib/supabase'","const supabaseAdmin = globalThis.__db").replace("import { gerarCodigoBSN } from '@/lib/helpers'","const gerarCodigoBSN = () => 'BSN-TEST'").replaceAll("'@/lib/security'",JSON.stringify(guardUrl)).replaceAll("'@/lib/session.mjs'",JSON.stringify(sessionUrl));get=get.replaceAll("'@/lib/vagas.mjs'",JSON.stringify(pathToFileURL(root+'/lib/vagas.mjs').href));const route=await import(asUrl(get));const before=globalThis.__dbCalls;assert.equal((await route.GET(req(null))).status,401);assert.equal(globalThis.__dbCalls,before);count++;
 for (const rel of ['candidatos/score','candidatos/delete','comportamental','upload/audio','upload/curriculo']) {
  let source=fs.readFileSync(root+'/app/api/'+rel+'/route.js','utf8').replace("import { NextResponse } from 'next/server'","const NextResponse = globalThis.__response").replace("import { supabaseAdmin } from '@/lib/supabase'","const supabaseAdmin = globalThis.__db").replaceAll("'@/lib/security'",JSON.stringify(guardUrl));
+ source=source.replaceAll("'@/lib/uploads.mjs'",JSON.stringify(pathToFileURL(root+'/lib/uploads.mjs').href));
+ if(rel.startsWith('upload/')){let helper=fs.readFileSync(root+'/lib/upload-pendente.js','utf8').replace("import { NextResponse } from 'next/server'","const NextResponse=globalThis.__response").replace("import { supabaseAdmin } from '@/lib/supabase'","const supabaseAdmin=globalThis.__db").replaceAll("'@/lib/security'",JSON.stringify(guardUrl)).replaceAll("'@/lib/uploads.mjs'",JSON.stringify(pathToFileURL(root+'/lib/uploads.mjs').href));source=source.replaceAll("'@/lib/upload-pendente'",JSON.stringify(asUrl(helper)));}
  const api=await import(asUrl(source));
  const denied=req(null);denied.json=async()=>({candidato_id:'candidate-a',respostas:{}});denied.formData=async()=>new Map([['candidato_id','candidate-a'],['arquivo',{}]]);
  const dbBefore=globalThis.__dbCalls;assert.equal((await api.POST(denied)).status,401);assert.equal(globalThis.__dbCalls,dbBefore);count++;
