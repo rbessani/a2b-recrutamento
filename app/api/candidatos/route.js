@@ -75,10 +75,25 @@ export async function GET(req) {
     }
 
     const observacoes = new Map()
+    const observacoesNovas = new Map()
     if (ids.length) {
       const { data: avaliacoes, error: avalError } = await supabaseAdmin.from('avaliacoes_ia').select('candidato_id, json_avaliacao').in('candidato_id', ids).eq('empresa_id', EMPRESA_ID).eq('ativo', true)
       if (avalError) throw avalError
       for (const avaliacao of avaliacoes || []) observacoes.set(avaliacao.candidato_id, avaliacao.json_avaliacao?.avaliacao_manual?.observacao || '')
+    }
+    // Observações independentes prevalecem sobre o campo legado da avaliação.
+    // Paginação evita perder a nota de candidatos antigos quando há muitos eventos.
+    if (ids.length) {
+      for (let inicio=0;;inicio+=1000) {
+        const {data:eventos,error:eventosError}=await supabaseAdmin.from('logs_processamento')
+          .select('id,candidato_id,created_at,detalhes').eq('empresa_id',EMPRESA_ID)
+          .eq('etapa','observacao_recrutador').in('candidato_id',ids)
+          .order('created_at',{ascending:false}).order('id',{ascending:false}).range(inicio,inicio+999);
+        if(eventosError)throw eventosError;
+        for(const evento of eventos||[])if(!observacoesNovas.has(evento.candidato_id)&&typeof evento.detalhes?.observacao==='string')observacoesNovas.set(evento.candidato_id,evento.detalhes.observacao);
+        if((eventos||[]).length<1000||observacoesNovas.size===ids.length)break;
+      }
+      for(const [id,texto] of observacoesNovas)observacoes.set(id,texto);
     }
     const urls = new Map()
     for (const arquivo of arquivos) {
