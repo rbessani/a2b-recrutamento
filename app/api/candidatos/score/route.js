@@ -27,7 +27,7 @@ export async function POST(req) {
     const comportamental = Number(score_comportamental || 0)
 
     if (![curriculo, audio, comportamental].every(n => Number.isFinite(n) && n >= 0 && n <= 100)) return failure('As notas devem estar entre 0 e 100.', 400)
-    if (observacao !== undefined && (typeof observacao !== 'string' || observacao.length > 3000)) return failure('Observação inválida.', 400)
+    if (observacao !== undefined && (typeof observacao !== 'string' || observacao.length > 10000)) return failure('Observação inválida.', 400)
     const regrasAudio = { diccao:[.10,[100,80,60,20]], velocidade:[.08,[100,60]], entonacao:[.10,[100,80,40]], seguranca:[.15,[100,70,30]], naturalidade:[.10,[100,70,30]], clareza:[.15,[100,70,30]], postura:[.10,[100,80,20]], energia:[.07,[100,70,30]], conducao:[.10,[100,70,30]], script:[.05,[100,85,30]] }
     if (criterios_audio !== undefined) {
       if (!criterios_audio || Array.isArray(criterios_audio) || Object.keys(criterios_audio).length !== 10 || !Object.entries(regrasAudio).every(([k, [, options]]) => options.includes(criterios_audio[k]))) return failure('Checklist de áudio incompleto ou inválido.', 400)

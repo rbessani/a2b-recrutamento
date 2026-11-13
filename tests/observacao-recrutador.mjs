@@ -20,7 +20,7 @@ const gu=url(adapt(fs.readFileSync(root+'/lib/security.js','utf8')));const load=
 const {POST}=await load('/app/api/candidatos/observacao/route.js'),{GET}=await load('/app/api/candidatos/route.js');
 const req=(body,admin=true,origin='https://example.invalid')=>({url:'https://example.invalid/api/candidatos?vaga_id='+V,headers:new Headers({origin}),cookies:{get:name=>admin&&name===session.ADMIN_COOKIE?{value:session.signSession('admin','admin',100)}:undefined},json:async()=>body});
 reset();assert.equal((await POST(req({candidato_id:C,observacao:'Teste'},false))).status,401);assert.equal(calls.length,0);assert.equal((await POST(req({candidato_id:C,observacao:'Teste'},true,'https://evil.invalid'))).status,403);assert.equal(calls.length,0);
-for(const body of [{candidato_id:C,observacao:'x'.repeat(3001)},{candidato_id:C,observacao:12},{candidato_id:'errado',observacao:'x'},{candidato_id:C,observacao:'x',score_audio:0}])assert.equal((await POST(req(body))).status,400);
+for(const body of [{candidato_id:C,observacao:'x'.repeat(10001)},{candidato_id:C,observacao:12},{candidato_id:'errado',observacao:'x'},{candidato_id:C,observacao:'x',score_audio:0}])assert.equal((await POST(req(body))).status,400);
 reset();const before=JSON.stringify(tables.avaliacoes_ia);assert.equal((await POST(req({candidato_id:C,observacao:'Contato para entrevista'}))).status,200);assert.equal(JSON.stringify(tables.avaliacoes_ia),before);assert.equal(calls.some(c=>c.table==='avaliacoes_ia'),false);
 let read=await GET(req({}));assert.equal(read.data.candidatos[0].observacao_avaliacao,'Contato para entrevista');assert.equal(read.data.candidatos[0].score_final,74);
 assert.equal((await POST(req({candidato_id:C,observacao:''}))).status,200);tables.logs_processamento[0].created_at='2020-01-01';read=await GET(req({}));assert.equal(read.data.candidatos[0].observacao_avaliacao,'');
@@ -30,3 +30,5 @@ reset();tables.avaliacoes_ia=[];assert.equal((await POST(req({candidato_id:C,obs
 reset();fail=true;assert.equal((await POST(req({candidato_id:C,observacao:'Falha'}))).status,500);
 reset();assert.equal((await POST(req({candidato_id:C,observacao:'Novo',observacao_base:'Desatualizado'}))).status,409);assert.equal(tables.logs_processamento.length,0);
 console.log('Observação: sessão/origem reais, empresa, limites, gravação/leitura, legado, limpeza e notas preservadas passaram; banco simulado.');
+
+reset();assert.equal((await POST(req({candidato_id:C,observacao:'x'.repeat(10000)}))).status,200);

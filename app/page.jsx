@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ContextoCandidato from "@/components/ContextoCandidato";
-import AvaliacaoAudioIA from "@/components/AvaliacaoAudioIA";
-import AvaliacaoCurriculoIA from "@/components/AvaliacaoCurriculoIA";
-import ObservacaoRecrutador from "@/components/ObservacaoRecrutador";
+import ObservacoesAvaliacoes from "@/components/ObservacoesAvaliacoes";
+
+
 import ResumoRetomada from "@/components/ResumoRetomada";
 import EntradaCandidatura from "@/components/EntradaCandidatura";
 import GestaoVagas from "@/components/GestaoVagas";
@@ -1021,16 +1021,15 @@ Essa ação não pode ser desfeita.`
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreCV(c)===""?"—":scoreCV(c)} / 100</span>
                     </div>
                     <AvaliacaoCurriculo c={c}/>
-                    <AvaliacaoCurriculoIA candidatoId={cid(c)} nome={nome(c)} temCurriculo={!!c.curriculo} observacao={c.observacao_avaliacao||''} observacaoPendente={!!observacoesPendentes[cid(c)]} bloqueado={saving===cid(c)} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)}/>
                   </section>
                   <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
                       <h4 style={{margin:0,color:B1,fontSize:15}}>Áudio</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreAudio(c)===""?"—":scoreAudio(c)} / 100</span>
                     </div>
-                    <ArquivoBotoes c={c} tipo="audio" label="audio"/><AvaliacaoAudioIA candidatoId={cid(c)} nome={nome(c)} temAudio={!!c.audio} observacao={c.observacao_avaliacao||''} observacaoPendente={!!observacoesPendentes[cid(c)]} bloqueado={saving===cid(c)} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)}/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
+                    <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
-                  <ObservacaoRecrutador onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
+                  <ObservacoesAvaliacoes nome={nome(c)} temCurriculo={!!c.curriculo} temAudio={!!c.audio} notaCurriculo={scoreCV(c)} notaAudio={scoreAudio(c)} observacaoPendente={!!observacoesPendentes[cid(c)]} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)} onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
                 <aside className="resultado-candidato" style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:16,display:"flex",flexDirection:"column",minWidth:0}}>
                   <h4 style={{margin:"0 0 10px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>
