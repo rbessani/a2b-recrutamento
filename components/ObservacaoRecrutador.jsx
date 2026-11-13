@@ -1,15 +1,16 @@
 "use client";
 import {useEffect,useRef,useState} from 'react';
-export default function ObservacaoRecrutador({candidatoId,observacao='',bloqueado=false,onSalva}){
+export default function ObservacaoRecrutador({candidatoId,observacao='',bloqueado=false,onPendente,onSalva}){
   const [texto,setTexto]=useState(observacao),[salvo,setSalvo]=useState(observacao),[loading,setLoading]=useState(false),[erro,setErro]=useState(''),[mensagem,setMensagem]=useState('');
   const [ampliado,setAmpliado]=useState(false);
   const trava=useRef(false),rascunho=useRef(texto),base=useRef(salvo);
   useEffect(()=>{if(rascunho.current===base.current){setTexto(observacao);rascunho.current=observacao;}setSalvo(observacao);base.current=observacao;},[candidatoId,observacao]);
+  useEffect(()=>{onPendente?.(candidatoId,texto!==salvo);},[candidatoId,texto,salvo,onPendente]);
   async function salvar(){
     if(trava.current||bloqueado)return;
     trava.current=true;setLoading(true);setErro('');setMensagem('');const enviado=texto;
     try{
-      const res=await fetch('/api/candidatos/observacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidato_id:candidatoId,observacao:enviado})});
+      const res=await fetch('/api/candidatos/observacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidato_id:candidatoId,observacao:enviado,observacao_base:salvo})});
       const json=await res.json();if(!res.ok)throw new Error(json.error||'Não foi possível salvar a observação.');
       setSalvo(enviado);base.current=enviado;onSalva(enviado);setMensagem('Observação salva.');
     }catch(e){setErro(e.message||'Não foi possível salvar. Seu texto continua neste campo.');}finally{setLoading(false);trava.current=false;}

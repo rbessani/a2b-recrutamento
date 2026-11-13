@@ -5,6 +5,16 @@ const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64'),su
 globalThis.__resp={json:(data,opts={})=>({status:opts.status||200,data})};let calls=[],fail=false,tables;
 function reset(){calls=[];fail=false;tables={candidatos:[{id:C,empresa_id:E,vaga_id:V}],vw_ranking:[{id:C,empresa_id:E,vaga_id:V,score_final:74}],resultado_comportamental:[],arquivos_candidatos:[],avaliacoes_ia:[{id:'av',candidato_id:C,empresa_id:E,ativo:true,score_audio:89,score_curriculo:60,json_avaliacao:{avaliacao_manual:{observacao:'Legado'}}}],logs_processamento:[]};}
 globalThis.__db={from(table){let filters=[],action='select',payload,orders=[],range;const q={select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},order(k,o){orders.push([k,o]);return q},range(a,b){range=[a,b];return q},insert(p){action='insert';payload=p;return q},maybeSingle(){return exec(true)},then(a,b){return Promise.resolve(exec(false)).then(a,b)}};function exec(single){calls.push({table,action});if(fail)return {error:{message:'mock'},data:null};if(action==='insert'){tables[table].push({id:String(tables[table].length),created_at:new Date().toISOString(),...payload});return {data:null,error:null}}let rows=(tables[table]||[]).filter(r=>filters.every(f=>f(r)));for(const [k,o]of orders.toReversed())rows.sort((a,b)=>String(a[k]).localeCompare(String(b[k]))*(o?.ascending===false?-1:1));if(range)rows=rows.slice(range[0],range[1]+1);return {data:single?rows[0]||null:rows,error:null}}return q}};
+// RPC nova mantém a gravação exclusiva em logs, com proteção contra edição concorrente.
+globalThis.__db.rpc=async(name,p)=>{
+ assert.equal(name,'bsn_salvar_observacao_recrutador');
+ if(fail)return {error:{message:'mock'}};
+ const eventos=tables.logs_processamento.filter(r=>r.candidato_id===p.p_candidato&&r.empresa_id===p.p_empresa&&r.etapa==='observacao_recrutador');
+ const atual=eventos.at(-1)?.detalhes.observacao??tables.avaliacoes_ia[0]?.json_avaliacao?.avaliacao_manual?.observacao??'';
+ if(p.p_base!==null&&p.p_base!==atual)return {data:{erro:'Conflito',status:409}};
+ await globalThis.__db.from('logs_processamento').insert({empresa_id:p.p_empresa,candidato_id:p.p_candidato,etapa:'observacao_recrutador',detalhes:{observacao:p.p_texto}});
+ return {data:{observacao:p.p_texto}};
+};
 const adapt=s=>s.replace(/import \{\s*NextResponse\s*\} from 'next\/server';?/g,'const NextResponse=globalThis.__resp;').replace(/import \{\s*supabaseAdmin\s*\} from '@\/lib\/supabase';?/g,'const supabaseAdmin=globalThis.__db;').replaceAll("'@/lib/session.mjs'",JSON.stringify(su)).replaceAll("'@/lib/vagas.mjs'",JSON.stringify(pathToFileURL(root+'/lib/vagas.mjs').href)).replace("import { gerarCodigoBSN } from '@/lib/helpers'","const gerarCodigoBSN=()=>''");
 const gu=url(adapt(fs.readFileSync(root+'/lib/security.js','utf8')));const load=async file=>import(url(adapt(fs.readFileSync(root+file,'utf8')).replaceAll("'@/lib/security'",JSON.stringify(gu))));
 const {POST}=await load('/app/api/candidatos/observacao/route.js'),{GET}=await load('/app/api/candidatos/route.js');
@@ -18,4 +28,5 @@ reset();read=await GET(req({}));assert.equal(read.data.candidatos[0].observacao_
 reset();tables.candidatos[0].empresa_id='outra';assert.equal((await POST(req({candidato_id:C,observacao:'Negar'}))).status,404);assert.equal(tables.logs_processamento.length,0);
 reset();tables.avaliacoes_ia=[];assert.equal((await POST(req({candidato_id:C,observacao:'Sem nota ainda'}))).status,200);assert.equal(tables.avaliacoes_ia.length,0);
 reset();fail=true;assert.equal((await POST(req({candidato_id:C,observacao:'Falha'}))).status,500);
+reset();assert.equal((await POST(req({candidato_id:C,observacao:'Novo',observacao_base:'Desatualizado'}))).status,409);assert.equal(tables.logs_processamento.length,0);
 console.log('Observação: sessão/origem reais, empresa, limites, gravação/leitura, legado, limpeza e notas preservadas passaram; banco simulado.');

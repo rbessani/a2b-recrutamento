@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ContextoCandidato from "@/components/ContextoCandidato";
+import AvaliacaoCurriculoIA from "@/components/AvaliacaoCurriculoIA";
 import ObservacaoRecrutador from "@/components/ObservacaoRecrutador";
 import ResumoRetomada from "@/components/ResumoRetomada";
 import EntradaCandidatura from "@/components/EntradaCandidatura";
@@ -639,6 +640,8 @@ function AdminPanel({onBack}){
   const [erro,setErro]=useState("");
   const [search,setSearch]=useState("");
   const [saving,setSaving]=useState(null);
+  const [observacoesPendentes,setObservacoesPendentes]=useState({});
+  const marcarObservacaoPendente=useCallback((id,pendente)=>setObservacoesPendentes(atual=>atual[id]===pendente?atual:{...atual,[id]:pendente}),[]);
   const [msg,setMsg]=useState("");
 
   async function carregar(){
@@ -660,6 +663,12 @@ function AdminPanel({onBack}){
   useEffect(()=>{let ativo=true;carregarVagas().then(lista=>{if(ativo){const padrao=lista.find(v=>v.id===process.env.NEXT_PUBLIC_VAGA_ID)||lista[0];setVagaSelecionada(padrao?.id||'');setLoading(false);}}).catch(e=>{if(ativo){setErro(e.message);setLoading(false);}});return()=>{ativo=false;consultaAtual.current++;};},[]);
   useEffect(()=>{if(vagaSelecionada)carregar();},[vagaSelecionada]);
 
+  async function atualizarAposIA(c,resultado){
+    setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,...Object.fromEntries(['score_curriculo','score_audio','score_comportamental','score_final'].filter(k=>resultado[k]!==undefined).map(k=>[k,resultado[k]])),observacao_avaliacao:resultado.observacao}:item));
+    const consulta=consultaAtual.current;
+    try{const res=await fetch('/api/candidatos?vaga_id='+encodeURIComponent(c.vaga_id),{cache:'no-store'});const json=await res.json();if(!res.ok)throw new Error();if(consulta===consultaAtual.current)setCandidatos(json.candidatos||[]);}
+    catch{setMsg('Nota e justificativas confirmadas. Use Atualizar para conferir a posição no ranking.');}
+  }
   function cid(c){return c.candidato_id||c.id;}
   function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
   function scoreTotal(c){return num(c.score_final)??num(c.score_total)??0;}
@@ -1011,6 +1020,7 @@ Essa ação não pode ser desfeita.`
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreCV(c)===""?"—":scoreCV(c)} / 100</span>
                     </div>
                     <AvaliacaoCurriculo c={c}/>
+                    <AvaliacaoCurriculoIA candidatoId={cid(c)} nome={nome(c)} temCurriculo={!!c.curriculo} observacao={c.observacao_avaliacao||''} observacaoPendente={!!observacoesPendentes[cid(c)]} bloqueado={saving===cid(c)} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)}/>
                   </section>
                   <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
@@ -1019,7 +1029,7 @@ Essa ação não pode ser desfeita.`
                     </div>
                     <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
-                  <ObservacaoRecrutador candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
+                  <ObservacaoRecrutador onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
                 <aside className="resultado-candidato" style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:16,display:"flex",flexDirection:"column",minWidth:0}}>
                   <h4 style={{margin:"0 0 10px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>

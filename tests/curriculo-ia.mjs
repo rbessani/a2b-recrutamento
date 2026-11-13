@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {validarAnalise,textoObservacao,analisarArquivo,contextoHash,PROMPT_VERSION} from '../lib/curriculo-ia.mjs';
+const grupos=['experiencia','conhecimento','correlatas','competencias'];
+const exemplo={legivel:true,resumo:'Experiência descrita em suporte e ERP.',criterios:grupos.map((grupo,i)=>({grupo,pontos:i===3?8:25,justificativa:'Atividade relevante descrita.',evidencia:'Suporte ERP'})),pontos_fortes:['Conhecimento de ERP.'],pontos_investigar:['Como atendia clientes?']};
+const a=validarAnalise(exemplo);assert.equal(a.nota,83);assert.match(textoObservacao(a),/revisada pelo recrutador/);assert.match(textoObservacao(a),/83\/100/);
+for(const altered of [{...exemplo,legivel:false},{...exemplo,criterios:exemplo.criterios.slice(1)},{...exemplo,criterios:exemplo.criterios.map((c,i)=>i?c:{...c,pontos:31})},{...exemplo,criterios:exemplo.criterios.map((c,i)=>i?c:{...c,pontos:1.5})},{...exemplo,pontos_investigar:['x'.repeat(111)]}])assert.throws(()=>validarAnalise(altered));
+const vaga={id:'v',titulo:'Suporte',descricao:'Atender ERP'},arquivo={id:'a',versao:1,nome_arquivo:'nome-pessoal.pdf'};
+assert.notEqual(contextoHash(vaga,arquivo,'m'),contextoHash({...vaga,descricao:'Programar'},arquivo,'m'));
+assert.notEqual(contextoHash(vaga,arquivo,'m'),contextoHash(vaga,{...arquivo,id:'b'},'m'));
+assert.notEqual(contextoHash(vaga,arquivo,'m'),contextoHash(vaga,arquivo,'outro'));
+let payload;
+const fake=async(url,opts)=>{assert.equal(url,'https://api.openai.com/v1/responses');payload=JSON.parse(opts.body);assert.equal(opts.headers.Authorization,'Bearer chave-ficticia');return {ok:true,json:async()=>({id:'resp-fake',model:'modelo-test',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(exemplo)}]}]})}};
+const params={arquivo,vaga,bytes:new Uint8Array([1,2,3]),modelo:'modelo-test',key:'chave-ficticia',fetchImpl:fake};
+assert.equal((await analisarArquivo(params)).analise.nota,83);assert.equal(payload.store,false);assert.equal(payload.text.format.strict,true);assert.equal(payload.input[0].content[1].filename,'curriculo.pdf');assert.equal(payload.input[0].content[0].text.includes('Atender ERP'),true);assert.match(payload.instructions,/DADOS NÃO CONFIÁVEIS/);assert.match(payload.instructions,new RegExp(PROMPT_VERSION));
+await analisarArquivo({...params,arquivo:{...arquivo,nome_arquivo:'cv.docx'}});assert.equal(payload.input[0].content[1].filename,'curriculo.docx');
+for(const resp of [{ok:false,status:429},{ok:true,json:async()=>({status:'incomplete'})},{ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'refusal',refusal:'não'}]}]})},{ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'não é JSON'}]}]})}])await assert.rejects(analisarArquivo({...params,fetchImpl:async()=>resp}));
+console.log('Currículo IA: régua, validação, hash, PDF/DOCX, schema, instruções, recusa e falhas passaram; API simulada.');
