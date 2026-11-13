@@ -1,3 +1,2 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
-module.exports = nextConfig
+module.exports={experimental:{serverComponentsExternalPackages:['ffmpeg-static'],outputFileTracingIncludes:{'/api/candidatos/audio-ia':['./node_modules/ffmpeg-static/ffmpeg']}}};

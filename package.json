@@ -6,14 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node tests/security.mjs && node tests/comportamental.mjs && node tests/vagas.mjs && node tests/uploads.mjs && node tests/upload-routes.mjs && node tests/cadastro-contato.mjs && node tests/supabase-atualizacao.mjs && node tests/retomada.mjs && node tests/questionario-imutavel.mjs && node tests/observacao-recrutador.mjs && node tests/curriculo-ia.mjs && node tests/curriculo-ia-routes.mjs",
-    "test:sql:curriculo": "node tests/curriculo-ia-sql.mjs"
+    "test": "node tests/security.mjs && node tests/comportamental.mjs && node tests/vagas.mjs && node tests/uploads.mjs && node tests/upload-routes.mjs && node tests/cadastro-contato.mjs && node tests/supabase-atualizacao.mjs && node tests/retomada.mjs && node tests/questionario-imutavel.mjs && node tests/observacao-recrutador.mjs && node tests/curriculo-ia.mjs && node tests/curriculo-ia-routes.mjs && node tests/audio-ia.mjs && node tests/audio-ia-routes.mjs",
+    "test:sql:curriculo": "node tests/curriculo-ia-sql.mjs",
+    "test:sql:audio": "node tests/audio-ia-sql.mjs",
+    "test:audio:formatos": "node tests/audio-converter.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "ffmpeg-static": "5.2.0",
     "next": "14.2.0",
     "react": "^18",
     "react-dom": "^18",
-    "@supabase/supabase-js": "^2.43.0",
     "server-only": "0.0.1"
   },
   "devDependencies": {

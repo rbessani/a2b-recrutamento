@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ContextoCandidato from "@/components/ContextoCandidato";
+import AvaliacaoAudioIA from "@/components/AvaliacaoAudioIA";
 import AvaliacaoCurriculoIA from "@/components/AvaliacaoCurriculoIA";
 import ObservacaoRecrutador from "@/components/ObservacaoRecrutador";
 import ResumoRetomada from "@/components/ResumoRetomada";
@@ -1027,7 +1028,7 @@ Essa ação não pode ser desfeita.`
                       <h4 style={{margin:0,color:B1,fontSize:15}}>Áudio</h4>
                       <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreAudio(c)===""?"—":scoreAudio(c)} / 100</span>
                     </div>
-                    <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
+                    <ArquivoBotoes c={c} tipo="audio" label="audio"/><AvaliacaoAudioIA candidatoId={cid(c)} nome={nome(c)} temAudio={!!c.audio} observacao={c.observacao_avaliacao||''} observacaoPendente={!!observacoesPendentes[cid(c)]} bloqueado={saving===cid(c)} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)}/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
                   <ObservacaoRecrutador onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
