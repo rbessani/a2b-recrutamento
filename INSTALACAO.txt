@@ -1,0 +1,14 @@
+Correção v17.1 — confirmação do áudio sem apagar observações
+
+1. Execute SOMENTE migrations/06_audio_observacao_compacta.sql no SQL Editor do Supabase Nexa. Não executar novamente 05 ou anteriores.
+2. No GitHub substitua SOMENTE components/AvaliacaoAudioIA.jsx. A pasta migrations e o teste podem ser incluídos para documentação. Aguarde Vercel Ready. Não precisa alterar variáveis.
+3. Abra o sistema no endereço principal, recarregue e clique novamente Analisar áudio com IA. A análise pronta será reutilizada, sem nova chamada paga no mesmo contexto.
+4. Revise e confirme. A nota do áudio e o total serão salvos. Currículo e comportamento não são alterados.
+
+Quando as justificativas completas couberem, são acrescentadas às observações. Se ultrapassarem 3.000 caracteres, entra um resumo curto com a referência da análise. Se nem esse resumo couber, o texto do recrutador fica integralmente preservado e a tela informa que os detalhes estão em Analisar áudio com IA. Não se trunca nem apaga texto anterior.
+
+As justificativas completas, o roteiro e as opções confirmadas continuam na tabela analises_audio e podem ser reabertos pelo mesmo botão, enquanto o contexto for o mesmo. Este pacote não oferece uma tela de histórico de contextos antigos; seus registros permanecem no banco.
+
+A migração apenas troca a função de confirmação. Não executa atualização em candidatos ou notas existentes. Confirmações já aplicadas continuam idempotentes. A nota só muda quando o recrutador confirmar uma prévia.
+
+Validação: teste PostgreSQL/PGlite isolado incluindo resumo, observação cheia, preservação do original e do histórico, idempotência e rollback. Build verificado com variáveis fictícias. Não publicado automaticamente nem executado no banco real neste trabalho.
