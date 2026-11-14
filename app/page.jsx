@@ -395,14 +395,14 @@ function UploadPage({step,icon,title,sub,accept,hint,onNext,onBack,isAudio,rotei
   );
 }
 
-function PausaCandidatura({onPausar,loading}) {
+function PausaCandidatura({onPausar,loading,prazo}) {
   return <div className="pausa-externa">
     <aside className="pausa-card" aria-labelledby="titulo-pausa">
       <span className="pausa-icone" aria-hidden="true"/>
       <div className="pausa-texto">
         <h2 id="titulo-pausa">Prefere terminar depois?</h2>
         <p>Volte pelo link desta vaga, neste mesmo navegador.</p>
-        <p>Prazo: até 24 horas após o cadastro. Apenas etapas enviadas ficam salvas.</p>
+        <p>{prazo?'Conclua até '+new Date(prazo).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+' (horário de Brasília). Sem áudio e currículo, a candidatura será encerrada como incompleta.':'A sessão dura até 24 horas após o cadastro.'} Apenas etapas enviadas ficam salvas.</p>
         <p className="pausa-aviso">Respostas incompletas, gravações e arquivos ainda não enviados não ficam salvos.</p>
       </div>
       <button type="button" disabled={loading} onClick={onPausar}>Pausar candidatura</button>
@@ -689,7 +689,7 @@ function AdminPanel({onBack}){
   }
   function cidade(c){return c.cidade||c.ci||"";}
   function estado(c){return c.estado||c.uf||"";}
-  function status(c){return c.status||c.st||"-";}
+  function status(c){if(c.encerrada_incompleta)return 'Incompleta — prazo encerrado';return c.status||c.st||"-";}
   function perfil(c){return c.perfil_dominante||"-";}
   function arquivos(c,tipo){return (c.arquivos||[]).filter(a=>a.tipo===tipo);}
 
@@ -780,7 +780,7 @@ Essa ação não pode ser desfeita.`
     const url=a&&(a.public_url||a.url||a.url_publica);
     const controles=<>
       {url?<a className="acao-arquivo" href={url} target="_blank" rel="noreferrer">{tipo==='audio'?'Abrir áudio':'Visualizar currículo'}</a>:<span className="acao-arquivo indisponivel">{a?'Arquivo sem link':'Não enviado'}</span>}
-      {url?<a className="acao-arquivo" href={url} download={a.nome_arquivo||label}>Baixar</a>:<span className="acao-arquivo indisponivel">Baixar</span>}
+      {url?<a className="acao-arquivo" href={"/api/candidatos/arquivo/baixar?id="+encodeURIComponent(a.id)} target="_blank" rel="noreferrer">Baixar</a>:<span className="acao-arquivo indisponivel">Baixar</span>}
     </>;
     if(tipo==='audio')return <ChecklistAudio c={c} controles={controles} player={url?<audio controls src={url} style={{width:'100%',height:32,display:'block',marginBottom:8}}/>:<p style={{fontSize:12,color:G400}}>{a?'Arquivo sem link':'Áudio não enviado'}</p>}/>;
     return <div className="acoes-candidato">{controles}{acao}</div>;
@@ -1146,7 +1146,7 @@ export default function App(){
         ...dadosPessoais,telefone:tel,whatsapp:tel,estado:uf,
         vaga_id:vagaPublica?.id,lgpd_aceito:true,
       });
-      save({cand:formData,candidato_id:res.candidato.id,codigo:res.candidato.codigo,roteiro_audio:res.candidato.roteiro_audio_inscricao||DEFAULT_SCRIPT});
+      save({cand:formData,candidato_id:res.candidato.id,codigo:res.candidato.codigo,prazo_conclusao:res.candidato.prazo_conclusao,roteiro_audio:res.candidato.roteiro_audio_inscricao||DEFAULT_SCRIPT});
       setInscricoes(p=>p.some(c=>c.id===res.candidato.id)?p:[...p,{id:res.candidato.id,codigo:res.candidato.codigo,nome:formData.nome}]);
       setStep(3);
     }catch(e){setErro(e.message);}
@@ -1200,7 +1200,7 @@ export default function App(){
       {step===3&&<P3 onNext={handleComportamental} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
       {step===4&&<UploadPage step={4} icon="🎵" title="Envio de Áudio" sub="Grave o script e envie o arquivo." accept=".mp3,.m4a,.ogg,.opus,.wav,.aac" hint="MP3, M4A, OGG, OPUS, WAV — Máx 4 MB" isAudio roteiroAudio={data.roteiro_audio||vagaPublica?.roteiro_audio||DEFAULT_SCRIPT} onNext={handleUploadAudio} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
       {step===5&&<UploadPage step={5} icon="📄" title="Envio de Currículo" sub="Envie seu currículo atualizado." accept=".pdf,.docx" hint="PDF ou DOCX — Máx 4 MB" onNext={handleUploadCurriculo} onBack={()=>handleRetomar(data.candidato_id,true)} loading={loading}/>}
-      {step>=3&&step<=5&&<PausaCandidatura onPausar={pausar} loading={loading}/>}
+      {step>=3&&step<=5&&<PausaCandidatura prazo={data.prazo_conclusao} onPausar={pausar} loading={loading}/>}
       {step===7&&resumo&&<ResumoRetomada resumo={resumo} onRetomar={handleRetomar} onVoltar={()=>{setStep(0);setPausada(false);}} loading={loading} pausada={pausada}/>}
       {step===6&&<P6 data={data}/>}
     </div>

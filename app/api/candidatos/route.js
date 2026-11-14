@@ -34,12 +34,13 @@ export async function GET(req) {
     if (ids.length > 0) {
       const { data, error: cadastroError } = await supabaseAdmin
         .from('candidatos')
-        .select('id, created_at, decisao_selecao')
+        .select('id, created_at, decisao_selecao, prazo_conclusao, encerrada_incompleta_em')
         .eq('empresa_id', EMPRESA_ID)
         .in('id', ids)
       if (cadastroError) throw cadastroError
       cadastros = data || []
     }
+    const cadastroPorId = new Map(cadastros.map(c => [c.id, c]))
     const decisoes = new Map(cadastros.map(c => [c.id, c.decisao_selecao]))
     const datasCadastro = new Map(cadastros.map(c => [c.id, c.created_at]))
 
@@ -115,6 +116,8 @@ export async function GET(req) {
         decisao_selecao: decisoes.get(candidato.id || candidato.candidato_id) || 'em_analise',
         observacao_avaliacao: observacoes.get(candidato.id || candidato.candidato_id) || '',
         data_cadastro: datasCadastro.get(candidato.id || candidato.candidato_id) || null,
+        prazo_conclusao: cadastroPorId.get(candidato.id||candidato.candidato_id)?.prazo_conclusao || null,
+        encerrada_incompleta: !!cadastroPorId.get(candidato.id||candidato.candidato_id)?.encerrada_incompleta_em || (!!cadastroPorId.get(candidato.id||candidato.candidato_id)?.prazo_conclusao && Date.now()>=new Date(cadastroPorId.get(candidato.id||candidato.candidato_id).prazo_conclusao).getTime() && !['audio','curriculo'].every(t=>arquivosDoCandidato.some(a=>a.tipo===t))),
         arquivos: arquivosDoCandidato,
         audio: arquivosDoCandidato.find(a => a.tipo === 'audio') || null,
         curriculo: arquivosDoCandidato.find(a => a.tipo === 'curriculo') || null
@@ -171,7 +174,7 @@ export async function POST(req) {
         lgpd_timestamp: new Date().toISOString(),
         status: 'novo',
       })
-      .select('id, codigo, nome, email, roteiro_audio_inscricao')
+      .select('id, codigo, nome, email, roteiro_audio_inscricao, prazo_conclusao')
       .single()
 
     if (error) {

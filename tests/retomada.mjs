@@ -31,6 +31,7 @@ res=await GET(req([cookie()],C));json=await res.json();assert.equal(json.progres
 const audio={id:'a',candidato_id:C,empresa_id:E,tipo:'audio',ativo:true,status:'enviado',nome_arquivo:'audio.webm',versao:1};arquivos=[audio];
 res=await GET(req([cookie()],C));json=await res.json();assert.equal(json.progresso.proxima_etapa,5);checks++;
 arquivos.push({...audio,id:'cv',tipo:'curriculo',nome_arquivo:'cv.pdf'});res=await GET(req([cookie()],C));json=await res.json();assert.equal(json.progresso.proxima_etapa,6);assert.equal(json.progresso.concluida,true);checks++;
+candidate.prazo_conclusao=new Date(Date.now()-1000).toISOString();arquivos=[audio];res=await GET(req([cookie()],C));json=await res.json();assert.equal(json.pode_continuar,false);assert.match(json.motivo,/prazo encerrado/);checks++;candidate.prazo_conclusao=null;
 vaga.status='inativa';res=await GET(req([cookie()],C));assert.equal((await res.json()).pode_continuar,true);checks++;
 vaga.status='encerrada';res=await GET(req([cookie()],C));assert.equal((await res.json()).pode_continuar,false);checks++;
 vaga.status='ativa';candidate.empresa_id='other';res=await GET(req([cookie()],C));assert.equal(res.status,404);checks++;

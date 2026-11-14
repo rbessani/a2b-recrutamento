@@ -26,7 +26,7 @@ export async function GET(req) {
     if (candidatoId && !autorizados.has(candidatoId)) return failure('Sessão da inscrição inválida ou expirada.',401);
     const empresa = process.env.NEXT_PUBLIC_EMPRESA_ID;
     const {data: candidatos,error} = await supabaseAdmin.from('candidatos')
-      .select('id,codigo,nome,email,telefone,whatsapp,cidade,estado,created_at,roteiro_audio_inscricao,lgpd_aceito')
+      .select('id,codigo,nome,email,telefone,whatsapp,cidade,estado,created_at,roteiro_audio_inscricao,lgpd_aceito,prazo_conclusao,encerrada_incompleta_em')
       .eq('empresa_id',empresa).eq('vaga_id',vagaId).in('id',candidatoId?[candidatoId]:[...autorizados.keys()]).order('created_at',{ascending:false});
     if (error) throw error;
     if (!candidatos?.length) return candidatoId ? failure('Inscrição não encontrada neste acesso.',404) : ok({inscricoes:[]});
@@ -41,10 +41,11 @@ export async function GET(req) {
     ]);
     if (erroResultado || erroArquivos) throw erroResultado || erroArquivos;
     const progresso = progressoInscricao(resultado,arquivos);
-    return ok({vaga,inscricao:{id:c.id,codigo:c.codigo,nome:c.nome,expira_em:new Date(autorizados.get(c.id)*1000).toISOString()},
-      data:{candidato_id:c.id,codigo:c.codigo,cand:{nome:c.nome,email:c.email,tel:c.telefone||c.whatsapp||'',cidade:c.cidade,uf:c.estado},roteiro_audio:c.roteiro_audio_inscricao||DEFAULT_SCRIPT,contagem:contagemPersistida(resultado)},
-      progresso,pode_continuar:c.lgpd_aceito===true && vaga.status!=='encerrada',
-      motivo:c.lgpd_aceito!==true?'Consentimento não registrado. Contate o RH.':vaga.status==='encerrada'?'Esta vaga foi encerrada. Sua inscrição permanece registrada.':null,
+    const vencida=!!c.prazo_conclusao && !progresso.concluida && (c.encerrada_incompleta_em || Date.now()>=new Date(c.prazo_conclusao).getTime());
+    return ok({vaga,inscricao:{id:c.id,codigo:c.codigo,nome:c.nome,prazo_conclusao:c.prazo_conclusao,expira_em:new Date(autorizados.get(c.id)*1000).toISOString()},
+      data:{candidato_id:c.id,codigo:c.codigo,prazo_conclusao:c.prazo_conclusao,cand:{nome:c.nome,email:c.email,tel:c.telefone||c.whatsapp||'',cidade:c.cidade,uf:c.estado},roteiro_audio:c.roteiro_audio_inscricao||DEFAULT_SCRIPT,contagem:contagemPersistida(resultado)},
+      progresso,pode_continuar:!vencida && c.lgpd_aceito===true && vaga.status!=='encerrada',
+      motivo:vencida?'Candidatura incompleta — prazo encerrado. Contate o recrutador.':c.lgpd_aceito!==true?'Consentimento não registrado. Contate o RH.':vaga.status==='encerrada'?'Esta vaga foi encerrada. Sua inscrição permanece registrada.':null,
       arquivos:(arquivos||[]).map(a=>({tipo:a.tipo,nome:a.nome_arquivo,versao:a.versao,status:a.status}))});
   } catch {
     return failure('Não foi possível consultar o progresso. Tente novamente sem refazer o cadastro.',500);

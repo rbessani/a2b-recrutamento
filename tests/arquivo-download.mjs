@@ -1,0 +1,23 @@
+import {readFileSync} from 'node:fs';import {pathToFileURL} from 'node:url';import assert from 'node:assert/strict';
+const E='10000000-0000-4000-8000-000000000001',C='30000000-0000-4000-8000-000000000001',F='40000000-0000-4000-8000-000000000001';
+Object.assign(process.env,{NEXT_PUBLIC_EMPRESA_ID:E,SESSION_SECRET:'test-only-'.repeat(6)});
+const su=pathToFileURL(process.cwd()+'/lib/session.mjs').href,session=await import(su);
+let record,calls=0,signs=[],fail=false;
+function reset(){record={id:F,candidato_id:C,empresa_id:E,tipo:'audio',ativo:true,bucket:'audios',caminho_storage:C+'/voz.webm',nome_arquivo:'gravação.webm'};calls=0;signs=[];fail=false;}
+globalThis.__downloadDb={from(table){calls++;let filters=[];const q={select(){return q;},eq(k,v){filters.push([k,v]);return q;},async maybeSingle(){if(table==='candidatos')return {data:{id:C}};return {data:filters.every(([k,v])=>record?.[k]===v)?record:null};}};return q;},storage:{from(bucket){return {createSignedUrl:async(path,ttl,options)=>{signs.push({bucket,path,ttl,options});return fail?{error:{}}:{data:{signedUrl:'https://example.invalid/fresh?download=file&token='+signs.length}};}};}}};
+const uri=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const adapt=s=>s.replace(/import \{\s*NextResponse\s*\} from 'next\/server';?/g,'const NextResponse={json:Response.json,redirect:(url,status)=>new Response(null,{status,headers:{Location:url}})};').replace(/import \{\s*supabaseAdmin\s*\} from '@\/lib\/supabase';?/g,'const supabaseAdmin=globalThis.__downloadDb;').replaceAll("'@/lib/session.mjs'",JSON.stringify(su)).replaceAll("'@/lib/vagas.mjs'",JSON.stringify(pathToFileURL(process.cwd()+'/lib/vagas.mjs').href));
+const guard=uri(adapt(readFileSync('lib/security.js','utf8')));
+const src=adapt(readFileSync('app/api/candidatos/arquivo/baixar/route.js','utf8')).replaceAll("'@/lib/security'",JSON.stringify(guard));
+const {GET}=await import(uri(src));
+const req=(admin=true,id=F)=>({url:'https://example.invalid/api/candidatos/arquivo/baixar?id='+id,cookies:{get:name=>admin&&name===session.ADMIN_COOKIE?{value:session.signSession('admin','admin',60)}:undefined}});
+reset();assert.equal((await GET(req(false))).status,401);assert.equal(calls,0);
+assert.equal((await GET(req(true,'bad'))).status,400);assert.equal(calls,0);
+reset();record.empresa_id='outra';assert.equal((await GET(req())).status,404);assert.equal(signs.length,0);
+reset();record.ativo=false;assert.equal((await GET(req())).status,404);
+reset();record.bucket='outro';assert.equal((await GET(req())).status,409);assert.equal(signs.length,0);
+reset();let res=await GET(req());assert.equal(res.status,303);assert.match(res.headers.get('cache-control'),/no-store/);assert.equal(signs[0].options.download,'gravação.webm');assert.equal(signs[0].ttl,120);
+res=await GET(req());assert.equal(signs.length,2);assert.match(res.headers.get('location'),/token=2/);
+reset();record.tipo='curriculo';record.bucket='curriculos';record.nome_arquivo='cv.pdf';assert.equal((await GET(req())).status,303);assert.equal(signs[0].bucket,'curriculos');assert.equal(signs[0].options.download,'cv.pdf');
+reset();fail=true;assert.equal((await GET(req())).status,502);
+console.log('Download: sessão, empresa, arquivo ativo, bucket permitido, link novo por clique, nome original, currículo e erro de Storage passaram; serviços simulados.');

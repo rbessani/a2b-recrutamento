@@ -11,6 +11,8 @@ export async function GET(req) {
   const {data,error}=await supabaseAdmin.from('vagas').select('id,titulo,descricao,roteiro_audio').eq('id',id).eq('empresa_id',process.env.NEXT_PUBLIC_EMPRESA_ID).eq('status','ativa').maybeSingle()
   if(error)throw error
   if(!data)return failure('Esta vaga não está disponível para inscrições.',404)
-  return NextResponse.json({vaga:data},{headers:{'Cache-Control':'no-store'}})
+  const {data:politica,error:pe}=await supabaseAdmin.from('config_candidaturas').select('ativa').eq('empresa_id',process.env.NEXT_PUBLIC_EMPRESA_ID).maybeSingle();
+  if(pe)throw pe;
+  return NextResponse.json({vaga:{...data,prazo_obrigatorio:politica?.ativa===true}},{headers:{'Cache-Control':'no-store'}})
  } catch {return failure('Não foi possível carregar a vaga. Tente novamente.',500)}
 }
