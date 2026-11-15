@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import {revisado,situacaoRevisao,ordenarRevisao} from '@/lib/revisao-candidatos.mjs';
 import ContextoCandidato from "@/components/ContextoCandidato";
 import ObservacoesAvaliacoes from "@/components/ObservacoesAvaliacoes";
 
@@ -627,6 +628,7 @@ function PerfilBarras({c}){
 
 function AdminPanel({onBack}){
   const [tab,setTab]=useState("dash");
+  const [modoRevisao,setModoRevisao]=useState("pendentes");
   const [vagas,setVagas]=useState([]);
   const [vagaSelecionada,setVagaSelecionada]=useState("");
   const consultaAtual=useRef(0);
@@ -689,7 +691,8 @@ function AdminPanel({onBack}){
   }
   function cidade(c){return c.cidade||c.ci||"";}
   function estado(c){return c.estado||c.uf||"";}
-  function status(c){if(c.encerrada_incompleta)return 'Incompleta — prazo encerrado';return c.status||c.st||"-";}
+  function status(c){return situacaoRevisao(c);}
+  function notaMaterial(c,tipo){const m=c.revisao?.[tipo];return m?.revisada?String(tipo==='audio'?scoreAudio(c):scoreCV(c)):m?.sugestao!==null&&m?.sugestao!==undefined?`Sugestão ${m.sugestao}/100`:m?.estado==='ausente'?'Não enviado':'Pendente';}
   function perfil(c){return c.perfil_dominante||"-";}
   function arquivos(c,tipo){return (c.arquivos||[]).filter(a=>a.tipo===tipo);}
 
@@ -764,15 +767,16 @@ Essa ação não pode ser desfeita.`
     }
   }
 
-  const rankingCompleto=[...candidatos].sort((a,b)=>scoreTotal(b)-scoreTotal(a));
+  const rankingCompleto=ordenarRevisao(candidatos,"revisados");
+  const pendentes=ordenarRevisao(candidatos,"pendentes");
   function posicaoNaVaga(c){
     const grupo=rankingCompleto.filter(item=>(item.vaga_id||"")===(c.vaga_id||""));
-    const salva=Number(c.posicao_ranking);
-    return {posicao:Number.isInteger(salva)&&salva>0?salva:grupo.findIndex(item=>cid(item)===cid(c))+1,total:grupo.length};
+    return {posicao:revisado(c)?grupo.findIndex(item=>cid(item)===cid(c))+1:null,total:grupo.length};
   }
-  const filtrados=rankingCompleto.filter(c=>!search||nome(c).toLowerCase().includes(search.toLowerCase())||email(c).toLowerCase().includes(search.toLowerCase()));
+  const filtrados=((tab==="cands"||tab==="rank")&&modoRevisao==="pendentes"?pendentes:rankingCompleto).filter(c=>!search||nome(c).toLowerCase().includes(search.toLowerCase())||email(c).toLowerCase().includes(search.toLowerCase()));
 
   const media=filtrados.length?Math.round(filtrados.reduce((s,c)=>s+scoreTotal(c),0)/filtrados.length):0;
+  const seletorRevisao=<div style={{marginBottom:14}}><div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{[['pendentes','Para revisar',pendentes.length],['revisados','Ranking revisado',rankingCompleto.length]].map(([id,t,n])=><button key={id} type="button" aria-pressed={modoRevisao===id} onClick={()=>{if(saving)return;if(Object.values(observacoesPendentes).some(Boolean)&&!window.confirm("Há observações não salvas. Deseja mudar de lista e descartar o rascunho?"))return;setModoRevisao(id);}} style={{padding:'10px 16px',border:'1px solid #D0E8F7',borderRadius:8,fontWeight:800,background:modoRevisao===id?B1:'#fff',color:modoRevisao===id?'#fff':B1,cursor:'pointer'}}>{t} · {n}</button>)}</div><p style={{fontSize:12,padding:10,background:modoRevisao==='pendentes'?'#FFF7E6':BP,borderRadius:8,color:G700}}>{modoRevisao==='pendentes'?'Sugestões da IA aguardam revisão e não entram no ranking. Candidaturas completas em ordem de conclusão; incompletas ao final.':'Posições calculadas somente entre candidaturas com currículo e áudio revisados. A decisão de seleção continua independente.'}</p></div>;
   const tabs=[{id:"vagas",l:"Vagas"},{id:"dash",l:"Dashboard"},{id:"rank",l:"Ranking"},{id:"cands",l:"Candidatos"}];
 
   function ArquivoBotoes({c,tipo,label,acao}){
@@ -951,10 +955,11 @@ Essa ação não pode ser desfeita.`
 
         {(tab==="rank"||tab==="dash")&&(<Card style={{marginBottom:18}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:14}}>
-            <h2 style={{fontWeight:800,color:B1,fontSize:"1.2rem"}}>🏆 Ranking de Candidatos</h2>
+            <h2 style={{fontWeight:800,color:B1,fontSize:"1.2rem"}}>Avaliações de candidatos</h2>
             <button onClick={carregar} style={{background:BP,color:B1,border:`1px solid ${B100}`,borderRadius:8,padding:"8px 12px",fontWeight:800,cursor:"pointer"}}>Atualizar</button>
           </div>
-          <div style={{background:BP,borderRadius:9,padding:12,marginBottom:14,color:B1,fontSize:13}}><strong>Composição da nota final</strong><div style={{marginTop:5}}>Comportamental <strong>40%</strong> · Currículo <strong>30%</strong> · Áudio <strong>30%</strong></div><div style={{fontSize:12,color:G600,marginTop:5}}>Itens não enviados recebem nota zero no cálculo.</div><div style={{marginTop:8}}>Maior influência comportamental: {vagaAtual?['A','B','C','D'].filter(k=>Number(vagaAtual['peso_perfil_'+k.toLowerCase()])===2).map(k=>PF[k].e+' '+PF[k].n).join(' · ')||'Todos os perfis com influência normal':'Selecione uma vaga'}</div></div>
+          <div style={{background:BP,borderRadius:9,padding:12,marginBottom:14,color:B1,fontSize:13}}><strong>Composição da nota final</strong><div style={{marginTop:5}}>Comportamental <strong>40%</strong> · Currículo <strong>30%</strong> · Áudio <strong>30%</strong></div><div style={{fontSize:12,color:G600,marginTop:5}}>Notas pendentes não são notas zero. Só candidaturas com os dois materiais revisados entram neste ranking.</div><div style={{marginTop:8}}>Maior influência comportamental: {vagaAtual?['A','B','C','D'].filter(k=>Number(vagaAtual['peso_perfil_'+k.toLowerCase()])===2).map(k=>PF[k].e+' '+PF[k].n).join(' · ')||'Todos os perfis com influência normal':'Selecione uma vaga'}</div></div>
+          {tab==="rank"&&seletorRevisao}
           {loading&&<p style={{color:G600}}>Carregando candidatos...</p>}
           {!loading&&!filtrados.length&&<p style={{color:G600}}>Nenhum candidato encontrado ainda.</p>}
           {!loading&&!!filtrados.length&&<div style={{overflowX:"auto"}}>
@@ -962,13 +967,13 @@ Essa ação não pode ser desfeita.`
               <thead><tr style={{background:G50}}>{["#","Nome","Perfil","Comp.","CV","Áudio","Final","Status"].map(h=><th key={h} style={{padding:"8px 10px",fontSize:10,fontWeight:800,letterSpacing:"0.07em",textTransform:"uppercase",color:G400,textAlign:"left"}}>{h}</th>)}</tr></thead>
               <tbody>{filtrados.map((c,i)=>(
                 <tr key={cid(c)||i} style={{borderTop:`1px solid ${G100}`}}>
-                  <td style={{padding:"10px"}}>{posicaoNaVaga(c).posicao}</td>
+                  <td style={{padding:"10px"}}>{revisado(c)?posicaoNaVaga(c).posicao:"—"}</td>
                   <td style={{padding:"10px"}}><strong>{nome(c)}</strong><div style={{fontSize:11,color:G400}}>{email(c)} · {cidade(c)} {estado(c)}</div></td>
                   <td style={{padding:"10px"}}><PerfilRanking c={c}/></td>
                   <td style={{padding:"10px",fontWeight:800,color:B1}}>{scoreComp(c)}</td>
-                  <td style={{padding:"10px",fontWeight:800}}>{scoreCV(c)===""?"-":scoreCV(c)}</td>
-                  <td style={{padding:"10px",fontWeight:800}}>{scoreAudio(c)===""?"-":scoreAudio(c)}</td>
-                  <td style={{padding:"10px",fontWeight:900,color:scColor(scoreTotal(c))}}>{scoreTotal(c)||"-"}</td>
+                  <td style={{padding:"10px",fontWeight:800}}>{notaMaterial(c,'curriculo')}</td>
+                  <td style={{padding:"10px",fontWeight:800}}>{notaMaterial(c,'audio')}</td>
+                  <td style={{padding:"10px",fontWeight:900,color:scColor(scoreTotal(c))}}>{revisado(c)?scoreTotal(c):"Aguardando revisão"}</td>
                   <td style={{padding:"10px"}}>{status(c)}</td>
                 </tr>
               ))}</tbody>
@@ -985,6 +990,7 @@ Essa ação não pode ser desfeita.`
               <button onClick={carregar} disabled={loading||!vagaSelecionada} style={{background:BP,color:B1,border:`1px solid ${B100}`,borderRadius:8,padding:"8px 12px",fontWeight:800,cursor:loading||!vagaSelecionada?"default":"pointer",opacity:(loading||!vagaSelecionada)?0.6:1}}>{loading?"Atualizando...":"Atualizar"}</button>
             </div>
           </div>
+          {seletorRevisao}
           {loading&&<p role="status">Carregando candidatos...</p>}
           {!loading&&!erro&&!filtrados.length&&<Card><p role="status" style={{color:G600}}>{search.trim()?"Nenhum candidato encontrado para esta busca. Limpe a busca ou clique em Atualizar.":"Nenhum candidato nesta vaga. Clique em Atualizar para buscar novas inscrições."}</p></Card>}
           {!loading&&filtrados.map(c=>(
@@ -1002,8 +1008,8 @@ Essa ação não pode ser desfeita.`
                 <small style={{color:G600}}>Andamento: {status(c).replace(/_/g,' ')}. A decisão não altera as notas.</small>
               </div>
               <div className="resumo-notas-contexto" aria-label="Notas do candidato">
-                <strong style={{color:scColor(scoreTotal(c))}}>Geral {scoreTotal(c)} / 100</strong>
-                <span>Comportamental {scoreComp(c)}</span><span>Currículo {scoreCV(c)===''?'—':scoreCV(c)}</span><span>Áudio {scoreAudio(c)===''?'—':scoreAudio(c)}</span>
+                <strong style={{color:revisado(c)?scColor(scoreTotal(c)):B1}}>{revisado(c)?`Geral ${scoreTotal(c)} / 100`:"Aguardando revisão humana"}</strong>
+                <span>Comportamental {scoreComp(c)}</span><span>Currículo {notaMaterial(c,'curriculo')}</span><span>Áudio {notaMaterial(c,'audio')}</span>
               </div>
               </>}>
               <div className="candidato-layout">
@@ -1018,27 +1024,27 @@ Essa ação não pode ser desfeita.`
                   <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
                       <h4 style={{margin:0,color:B1,fontSize:15}}>Currículo</h4>
-                      <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreCV(c)===""?"—":scoreCV(c)} / 100</span>
+                      <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>{notaMaterial(c,'curriculo')}{c.revisao?.curriculo?.revisada?' / 100':''}</span>
                     </div>
                     <AvaliacaoCurriculo c={c}/>
                   </section>
                   <section style={{border:"1px solid "+G200,borderRadius:10,padding:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
                       <h4 style={{margin:0,color:B1,fontSize:15}}>Áudio</h4>
-                      <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>Nota {scoreAudio(c)===""?"—":scoreAudio(c)} / 100</span>
+                      <span style={{background:B2,color:"#fff",padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:800}}>{notaMaterial(c,'audio')}{c.revisao?.audio?.revisada?' / 100':''}</span>
                     </div>
                     <ArquivoBotoes c={c} tipo="audio" label="audio"/>{c.audio?.roteiro_audio&&<details style={{marginTop:10,fontSize:12,color:G600}}><summary>Instrução recebida nesta inscrição</summary><p style={{whiteSpace:"pre-wrap"}}>{c.audio.roteiro_audio}</p></details>}
                   </section>
-                  <ObservacoesAvaliacoes nome={nome(c)} temCurriculo={!!c.curriculo} temAudio={!!c.audio} notaCurriculo={scoreCV(c)} notaAudio={scoreAudio(c)} observacaoPendente={!!observacoesPendentes[cid(c)]} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)} onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
+                  <ObservacoesAvaliacoes revisao={c.revisao} nome={nome(c)} temCurriculo={!!c.curriculo} temAudio={!!c.audio} notaCurriculo={scoreCV(c)} notaAudio={scoreAudio(c)} observacaoPendente={!!observacoesPendentes[cid(c)]} onSalvando={setSaving} onConfirmada={resultado=>atualizarAposIA(c,resultado)} onPendente={marcarObservacaoPendente} candidatoId={cid(c)} observacao={c.observacao_avaliacao||''} bloqueado={saving===cid(c)} onSalva={texto=>setCandidatos(lista=>lista.map(item=>cid(item)===cid(c)?{...item,observacao_avaliacao:texto}:item))}/>
                 </div>
                 <aside className="resultado-candidato" style={{background:BP,border:"1px solid "+B100,borderRadius:12,padding:16,display:"flex",flexDirection:"column",minWidth:0}}>
                   <h4 style={{margin:"0 0 10px",fontSize:18,color:B1}}>🏆 Resultado geral</h4>
-                  <div style={{padding:"10px 12px",background:"#fff",borderRadius:8,color:B1,fontSize:14,fontWeight:800}}>{posicaoNaVaga(c).posicao}º lugar de {posicaoNaVaga(c).total} candidatos</div>
-                  <div style={{fontSize:52,lineHeight:1.2,fontWeight:900,color:scColor(scoreTotal(c)),margin:"12px 0"}}>{scoreTotal(c)}<span style={{fontSize:20,color:G600,fontWeight:500}}> / 100</span></div>
-                  {[["Comportamental",scoreComp(c)],["Currículo",scoreCV(c)],["Áudio",scoreAudio(c)]].map(([label,valor])=>(
+                  <div style={{padding:"10px 12px",background:"#fff",borderRadius:8,color:B1,fontSize:14,fontWeight:800}}>{revisado(c)?`${posicaoNaVaga(c).posicao}º lugar de ${posicaoNaVaga(c).total} candidatos revisados`:"Posição: aguardando revisão"}</div>
+                  <div style={{fontSize:52,lineHeight:1.2,fontWeight:900,color:revisado(c)?scColor(scoreTotal(c)):B1,margin:"12px 0"}}>{revisado(c)?scoreTotal(c):"—"}<span style={{fontSize:20,color:G600,fontWeight:500}}> / 100</span></div>
+                  {[["Comportamental",scoreComp(c)],["Currículo",notaMaterial(c,"curriculo")],["Áudio",notaMaterial(c,"audio")]].map(([label,valor])=>(
                     <div key={label} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"8px 0",borderTop:"1px solid "+B100,color:B1,fontSize:14}}><span>{label}</span><strong>{valor===""?"—":valor}</strong></div>
                   ))}
-                  <p style={{fontSize:11,color:G600,lineHeight:1.6}}>Notas atuais da avaliação. Posição na vaga, independentemente da busca.</p>
+                  <p style={{fontSize:11,color:G600,lineHeight:1.6}}>Sugestões são provisórias. A posição usa somente avaliações revisadas, independentemente da busca.</p>
                   <div style={{marginTop:"auto",paddingTop:24}}>
                     <button onClick={()=>excluirCandidato(c)} disabled={saving===cid(c)} style={{width:"100%",border:"1px solid "+RED,background:"#fff",color:RED,borderRadius:8,padding:"10px 12px",fontWeight:800,cursor:saving===cid(c)?"not-allowed":"pointer",opacity:saving===cid(c)?0.65:1}}>{saving===cid(c)?"Processando...":"Excluir candidato"}</button>
                   </div>

@@ -1,3 +1,4 @@
+import {resumoMaterial} from '@/lib/revisao-candidatos.mjs'
 import { validId } from '@/lib/vagas.mjs'
 import { candidateCookie, cookieOptions, signSession } from '@/lib/session.mjs'
 import { checkOrigin, requireAdmin, requireCandidate, failure } from '@/lib/security'
@@ -67,7 +68,7 @@ export async function GET(req) {
     if (ids.length > 0) {
       const { data: arquivosData, error: arquivosError } = await supabaseAdmin
         .from('arquivos_candidatos')
-        .select('id, candidato_id, tipo, bucket, caminho_storage, nome_arquivo, mime_type, tamanho_bytes, versao, ativo, status, roteiro_audio')
+        .select('id, candidato_id, tipo, bucket, caminho_storage, nome_arquivo, mime_type, tamanho_bytes, versao, ativo, status, roteiro_audio, created_at')
         .in('candidato_id', ids)
         .eq('ativo', true)
 
@@ -75,12 +76,24 @@ export async function GET(req) {
       arquivos = arquivosData || []
     }
 
+    const manuais = new Map()
+    const analises = {audio:[],curriculo:[]}
+    let fila = []
+    if(ids.length){
+      for(const tipo of ['audio','curriculo']){
+        for(let inicio=0;;inicio+=1000){
+          const {data,error}=await supabaseAdmin.from('analises_'+tipo).select('id,candidato_id,arquivo_id,status,nota:resultado->>nota,created_at').eq('empresa_id',EMPRESA_ID).in('candidato_id',ids).order('created_at',{ascending:false}).range(inicio,inicio+999);
+          if(error)throw error;analises[tipo].push(...data||[]);if((data||[]).length<1000)break;
+        }
+      }
+      for(let inicio=0;;inicio+=1000){const {data,error}=await supabaseAdmin.from('fila_analises').select('candidato_id,arquivo_id,status,mensagem').eq('empresa_id',EMPRESA_ID).in('candidato_id',ids).range(inicio,inicio+999);if(error)throw error;fila.push(...data||[]);if((data||[]).length<1000)break;}
+    }
     const observacoes = new Map()
     const observacoesNovas = new Map()
     if (ids.length) {
       const { data: avaliacoes, error: avalError } = await supabaseAdmin.from('avaliacoes_ia').select('candidato_id, json_avaliacao').in('candidato_id', ids).eq('empresa_id', EMPRESA_ID).eq('ativo', true)
       if (avalError) throw avalError
-      for (const avaliacao of avaliacoes || []) observacoes.set(avaliacao.candidato_id, avaliacao.json_avaliacao?.avaliacao_manual?.observacao || '')
+      for (const avaliacao of avaliacoes || []) {observacoes.set(avaliacao.candidato_id, avaliacao.json_avaliacao?.avaliacao_manual?.observacao || '');manuais.set(avaliacao.candidato_id,avaliacao.json_avaliacao?.avaliacao_manual)}
     }
     // Observações independentes prevalecem sobre o campo legado da avaliação.
     // Paginação evita perder a nota de candidatos antigos quando há muitos eventos.
@@ -110,8 +123,12 @@ export async function GET(req) {
           url_publica: urls.get(a.id) || null
         }))
 
+      const revisao=Object.fromEntries(['audio','curriculo'].map(tipo=>[tipo,resumoMaterial(arquivosDoCandidato.find(a=>a.tipo===tipo),analises[tipo],fila,manuais.get(candidato.id||candidato.candidato_id),tipo,candidato['score_'+tipo])]));
+      const concluida=arquivosDoCandidato.some(a=>a.tipo==='audio')&&arquivosDoCandidato.some(a=>a.tipo==='curriculo');
       return {
         ...candidato,
+        revisao,
+        concluida_em:concluida?arquivosDoCandidato.reduce((ultimo,a)=>a.created_at>ultimo?a.created_at:ultimo,''):null,
         ...(resultadosPorCandidato.get(candidato.id || candidato.candidato_id) || {}),
         decisao_selecao: decisoes.get(candidato.id || candidato.candidato_id) || 'em_analise',
         observacao_avaliacao: observacoes.get(candidato.id || candidato.candidato_id) || '',

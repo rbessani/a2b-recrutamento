@@ -3,9 +3,10 @@ import {useState} from 'react';
 import ObservacaoRecrutador from './ObservacaoRecrutador';
 import AvaliacaoCurriculoIA from './AvaliacaoCurriculoIA';
 import AvaliacaoAudioIA from './AvaliacaoAudioIA';
-export default function ObservacoesAvaliacoes({candidatoId,nome,temCurriculo,temAudio,notaCurriculo,notaAudio,observacao,observacaoPendente,bloqueado,onPendente,onSalva,onSalvando,onConfirmada}){
- const [aba,setAba]=useState('obs'),[visitadas,setVisitadas]=useState({obs:true});
- const tabs=[['obs','Minhas observações'],['curriculo',`Currículo · ${notaCurriculo===''?'—':notaCurriculo}/100`],['audio',`Áudio · ${notaAudio===''?'—':notaAudio}/100`]];
+export default function ObservacoesAvaliacoes({candidatoId,nome,temCurriculo,temAudio,notaCurriculo,notaAudio,observacao,observacaoPendente,bloqueado,onPendente,onSalva,onSalvando,onConfirmada,revisao}){
+ const inicial=temCurriculo&&!revisao?.curriculo?.revisada?'curriculo':temAudio&&!revisao?.audio?.revisada?'audio':'obs';
+ const [aba,setAba]=useState(inicial),[visitadas,setVisitadas]=useState({obs:true,[inicial]:true});
+ const tabs=[['obs','Minhas observações'],['curriculo',`Currículo · ${revisao?.curriculo?.revisada?'Revisado':revisao?.curriculo?.sugestao!=null?'Sugestão '+revisao.curriculo.sugestao+'/100':'Pendente'}`],['audio',`Áudio · ${revisao?.audio?.revisada?'Revisado':revisao?.audio?.sugestao!=null?'Sugestão '+revisao.audio.sugestao+'/100':'Pendente'}`]];
  const props={candidatoId,nome,observacao,observacaoPendente,bloqueado,onSalvando,onConfirmada};
  function abrir(id){setAba(id);setVisitadas(v=>({...v,[id]:true}));}
  return <section style={{border:'1px solid #D0E8F7',borderRadius:10,padding:12,minWidth:0}}><h4 style={{margin:'0 0 8px',fontSize:15,color:'#003E8A'}}>Observações e avaliações</h4>

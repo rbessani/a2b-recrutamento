@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';import {resumoMaterial,revisado,ordenarRevisao,situacaoRevisao} from '../lib/revisao-candidatos.mjs';
+const f={id:'f',created_at:'2026-11-14T10:00:00Z'};
+assert.equal(resumoMaterial(null).estado,'ausente');
+assert.equal(resumoMaterial(f,[{arquivo_id:'outro',status:'aplicada'}]).revisada,false);
+assert.equal(resumoMaterial(f,[{arquivo_id:'f',status:'pronta',nota:'95'}]).revisada,false);
+assert.equal(resumoMaterial(f,[{arquivo_id:'f',status:'pronta',nota:'0'}]).sugestao,0);
+assert.equal(resumoMaterial(f,[{arquivo_id:'f',status:'aplicada',nota:'0'}]).revisada,true);
+assert.equal(resumoMaterial(f,[],[],{revisoes_materiais:{audio:{arquivo_id:'f'}}},'audio',0).revisada,true);
+assert.equal(resumoMaterial(f,[],[],{responsavel:'admin',atualizado_em:'2026-11-13',score_curriculo:90},'curriculo',90).revisada,false);
+assert.equal(resumoMaterial(f,[],[],{responsavel:'admin',atualizado_em:'2026-11-15',score_curriculo:90},'curriculo',90).revisada,true);
+assert.equal(resumoMaterial(f,[],[{arquivo_id:'f',status:'erro',mensagem:'Falha de conversão'}]).estado,'erro');
+const pend=(id,data,score)=>({id,audio:f,curriculo:f,score_final:score,data_cadastro:data,concluida_em:data,revisao:{audio:{revisada:false},curriculo:{revisada:false,estado:'revisao'}}});
+const a=pend('a','2026-11-14T12:00:00Z',1),b=pend('b','2026-11-14T13:00:00Z',99),c={...pend('c','2026-11-14T11:00:00Z',0),revisao:{audio:{revisada:true},curriculo:{revisada:true}}};
+assert.deepEqual(ordenarRevisao([b,c,a],'pendentes').map(c=>c.id),['a','b']);
+assert.deepEqual(ordenarRevisao([b,c,a],'revisados').map(c=>c.id),['c']);
+assert.equal(revisado(c),true);assert.equal(revisado({...c,encerrada_incompleta:true}),false);
+assert.equal(situacaoRevisao(a),'Aguardando revisão humana');assert.equal(situacaoRevisao(c),'Avaliação revisada');
+console.log('Revisão: zero, arquivo novo, legado com evidência, falha, separação e ordenação sem nota da IA passaram.');

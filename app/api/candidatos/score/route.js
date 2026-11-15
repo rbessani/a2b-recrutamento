@@ -22,6 +22,7 @@ export async function POST(req) {
 
     if (candError) throw candError
 
+    if(body.tipo_revisado!==undefined&&!['curriculo','audio'].includes(body.tipo_revisado))return failure('Tipo de avaliação inválido.',400)
     const curriculo = Number(score_curriculo || 0)
     const audio = Number(score_audio || 0)
     const comportamental = Number(score_comportamental || 0)
@@ -58,10 +59,14 @@ export async function POST(req) {
       .maybeSingle()
 
     if (existenteError) throw existenteError
+    const tipoRevisado=body.tipo_revisado||(criterios_audio?'audio':'curriculo');
+    const {data:material,error:materialErro}=await supabaseAdmin.from('arquivos_candidatos').select('id').eq('empresa_id',candidato.empresa_id).eq('candidato_id',candidato_id).eq('tipo',tipoRevisado).eq('ativo',true).maybeSingle();
+    if(materialErro)throw materialErro;
     const registroManual = {
       ...(existente?.json_avaliacao?.avaliacao_manual || {}),
       observacao: observacao ?? existente?.json_avaliacao?.avaliacao_manual?.observacao ?? '',
       ...(criterios_audio ? { criterios_audio } : {}),
+      revisoes_materiais:{...(existente?.json_avaliacao?.avaliacao_manual?.revisoes_materiais||{}),...(material?{[tipoRevisado]:{arquivo_id:material.id,revisada_em:new Date().toISOString()}}:{})},
       responsavel: 'admin', atualizado_em: new Date().toISOString(),
       score_curriculo: curriculo, score_audio: audio, score_comportamental: comportamental
     }

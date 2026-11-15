@@ -22,7 +22,7 @@ export async function POST(req){
   const resposta=await executar(tarefa.candidato_id,tarefa.arquivo_id);
   const dados=await resposta.json();
   const pronta=resposta.ok&&['pronta','aplicada'].includes(dados.analise?.status);
-  const {error:saveError}=await supabaseAdmin.from('fila_analises').update({status:pronta?'concluida':'erro',finalizada_em:new Date().toISOString(),analise_id:dados.analise?.id||null,mensagem:pronta?'Sugestão pronta para revisão humana.':'A análise automática não concluiu. Consulte a aba da análise ou avalie manualmente.'}).eq('id',tarefa.id).eq('empresa_id',empresa).eq('status','processando');
+  const {error:saveError}=await supabaseAdmin.from('fila_analises').update({status:pronta?'concluida':'erro',finalizada_em:new Date().toISOString(),analise_id:dados.analise?.id||null,mensagem:pronta?'Sugestão pronta para revisão humana.':(typeof dados.error==='string'?dados.error.slice(0,600):'A análise automática não concluiu. Consulte a aba da análise ou avalie manualmente.')}).eq('id',tarefa.id).eq('empresa_id',empresa).eq('status','processando');
   if(saveError)throw saveError;
   return NextResponse.json({processada:true,pronta},{headers});
  }catch{return NextResponse.json({error:'Falha no processamento. Os arquivos enviados permanecem salvos.'},{status:503,headers});}
