@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {revisado,situacaoRevisao,ordenarRevisao} from '@/lib/revisao-candidatos.mjs';
+import ContatoWhatsApp from "@/components/ContatoWhatsApp";
 import ContextoCandidato from "@/components/ContextoCandidato";
 import ObservacoesAvaliacoes from "@/components/ObservacoesAvaliacoes";
 
@@ -1004,6 +1005,7 @@ Essa ação não pode ser desfeita.`
                 <span style={{padding:"6px 10px",border:"1px solid "+B100,borderRadius:8,background:BP,color:B1,fontSize:12,fontWeight:700}}>{status(c).replace(/_/g," ")}</span>
               </div>
               <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:0,alignItems:'center'}}>
+                <ContatoWhatsApp nome={nome(c)} whatsapp={c.whatsapp} telefone={c.telefone} vaga={vagaAtual?.titulo}/>
                 <label style={{fontSize:13,color:B1}}>Decisão de seleção: <select aria-label="Decisão de seleção" value={c.decisao_selecao||'em_analise'} onChange={e=>salvarDecisao(c,e.target.value)} style={{padding:8,borderRadius:8,border:'1px solid '+G200}}><option value="em_analise">Em análise</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option></select></label>
                 <small style={{color:G600}}>Andamento: {status(c).replace(/_/g,' ')}. A decisão não altera as notas.</small>
               </div>
